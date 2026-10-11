@@ -132,11 +132,6 @@ Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** just
 - **Enmascaramiento dinámico** del correo del cliente y **filtro de filas** según el grupo del usuario (`dac_lectores`).
 - **GRANT por rol:** Bronze solo para ingeniería; Silver para analistas avanzados; Gold para consumo.
 - **Owner por rol** y steward en los tags de cada tabla, **diccionario de datos** como tabla consultable y **linaje** completo Bronze → Silver → Gold.
-
-<p align="center">
-  <img src="docs/lineage_unity_catalog.png" alt="Linaje de datos en Unity Catalog, de Bronze a Gold" width="100%">
-</p>
-
 ---
 
 ## 📈 Observabilidad

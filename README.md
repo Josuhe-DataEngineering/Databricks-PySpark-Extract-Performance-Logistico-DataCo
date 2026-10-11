@@ -190,28 +190,28 @@ Proyecto que **migra un proceso tradicional** (SQL Server Integration Services s
 
 ## 🚀 Capacidades de nivel productivo
 
-Más allá del pipeline base, el proyecto suma una capa de gobierno, calidad, automatización y analítica avanzada. Estado: ✅ implementado · 🚧 en construcción.
+Más allá del pipeline base, el proyecto suma una capa de gobierno, calidad, automatización y analítica avanzada.
 
-### 🛡️ Gobierno de datos (Unity Catalog) · ✅ implementado
+### 🛡️ Gobierno de datos (Unity Catalog) ·
 Etiquetas de propiedad por tabla, enmascaramiento dinámico de datos sensibles (como el correo del cliente) y filtros a nivel de fila según el grupo del usuario, todo gestionado en Unity Catalog.
 
-### ✅ Calidad de datos declarativa · ✅ implementado
+### ✅ Calidad de datos declarativa ·
 Motor de calidad basado en una tabla de reglas y una tabla de resultados: cada corrida valida las reglas aplicables y persiste el resultado, con constraints a nivel Delta que protegen la integridad de las tablas.
 
-### 📈 Dashboard de salud del pipeline · ✅ implementado
+### 📈 Dashboard de salud del pipeline ·
 Dashboard AI/BI "Salud del pipeline DataCo", construido sobre las vistas de salud del esquema de control (última ejecución, histórico y errores). Muestra el estado de la última ejecución, la duración por notebook, la tendencia diaria y los errores recientes.
 
 <p align="center">
   <img src="docs/dashboard_salud_pipeline.png" alt="Dashboard de salud del pipeline DataCo" width="100%">
 </p>
 
-### ⚙️ Infraestructura como código y CI/CD · ✅ implementado
+### ⚙️ Infraestructura como código y CI/CD ·
 Todo el entorno descrito con Databricks Asset Bundles y desplegado con GitHub Actions (lint, validación y despliegue), con separación de ambientes dev y prod.
 
-### 🔄 Ingesta incremental · ✅ implementado
+### 🔄 Ingesta incremental ·
 Ingesta con Auto Loader para el procesamiento incremental de archivos a medida que llegan al almacenamiento de objetos.
 
-### 🤖 Capa de Machine Learning · ✅ implementado
+### 🤖 Capa de Machine Learning ·
 La capa Gold alimenta un modelo predictivo que anticipa el riesgo de retraso en los envíos, integrando el Lakehouse con el ciclo de MLOps.
 
 ---

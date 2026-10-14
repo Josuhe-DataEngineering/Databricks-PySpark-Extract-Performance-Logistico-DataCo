@@ -81,8 +81,10 @@ Esquema estrella listo para análisis, con **grano declarado** en cada tabla:
 ### 📊 Entrega a negocio
 Un notebook genera el **Excel de 4 pestañas** con formato condicional tipo semáforo y variación contra el corte anterior, y lo **envía por correo** con una tabla resumen y un gráfico en el cuerpo del mensaje.
 
-### 🤖 Machine Learning
-La capa Gold alimenta un modelo que predice el **riesgo de retraso** de cada envío. Las variables se construyen sin fuga de datos, el entrenamiento se registra en **MLflow**, el modelo queda versionado en **Unity Catalog** y sus predicciones se guardan en una tabla Gold.
+### 🤖 Machine Learning &nbsp; 🚧 *En construcción*
+> 🚧 Esta capa está en desarrollo; el pipeline de datos de arriba ya corre de punta a punta sin ella.
+
+La capa Gold alimentará un modelo que predice el **riesgo de retraso** de cada envío. Las variables se construirán sin fuga de datos, el entrenamiento se registrará en **MLflow**, el modelo quedará versionado en **Unity Catalog** y sus predicciones se guardarán en una tabla Gold.
 
 ---
 

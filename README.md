@@ -19,6 +19,8 @@ De SharePoint al correo del área de negocio: ingesta, modelo dimensional con hi
 
 </div>
 
+> 🚧 **En construcción** marca lo que está diseñado pero todavía no está implementado en este repositorio. Lo demás ya corre de punta a punta.
+
 ---
 
 ## 🎯 En una línea
@@ -48,26 +50,26 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 | **Fuente** | Archivo en SharePoint Online, descargado vía Microsoft Graph |
 | **Procesamiento** | PySpark + Spark SQL sobre Delta Lake |
 | **Arquitectura** | Data Lakehouse con modelo medallón |
-| **Orquestación** | Databricks Workflow (22 tasks de negocio, compute Serverless, en abanico) |
+| **Orquestación** | Databricks Workflow (compute Serverless, en abanico; las 2 tasks de calidad 🚧 en construcción) |
 | **Modelo** | Esquema estrella con **SCD2** en dimensiones y hechos clave |
-| **Calidad** | 18 reglas declarativas en seis dimensiones; si falla una crítica, el pipeline se detiene |
-| **Gobierno** | Clasificación en 4 niveles, tags, máscara de PII, row filter y GRANT por rol en Unity Catalog |
+| **Calidad** | 🚧 *En construcción:* 18 reglas declarativas en seis dimensiones; si falla una crítica, el pipeline se detiene |
+| **Gobierno** | 🚧 *En construcción:* clasificación en 4 niveles, tags, máscara de PII, row filter y GRANT por rol en Unity Catalog |
 | **Observabilidad** | Tabla `etl_log`, alerta a Slack ante cualquier fallo, vistas de salud y dashboard AI/BI |
-| **Infraestructura** | Databricks Asset Bundles, ambientes dev y prod y CI/CD con GitHub Actions |
+| **Infraestructura** | 🚧 *En construcción:* Databricks Asset Bundles, ambientes dev y prod y CI/CD con GitHub Actions |
 | **Entrega** | Excel de 4 pestañas enviado por correo (Microsoft Graph) |
-| **ML** | Modelo de riesgo de retraso con MLflow, registrado en Unity Catalog |
+| **ML** | 🚧 *En construcción:* modelo de riesgo de retraso con MLflow, registrado en Unity Catalog |
 
 ---
 
 ## 🔧 Qué hace cada capa
 
 ### 🥉 Bronze — ingesta cruda
-Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen. Cada fila lleva sus metadatos técnicos: fecha de carga, ejecución, origen, archivo, **hash del archivo**, filas del archivo y **esquema original en JSON**. El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. Retención definida a 12 meses y acceso restringido a ingeniería.
+Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen. Cada fila lleva sus metadatos técnicos: fecha de carga, ejecución, origen y archivo (🚧 *en construcción:* hash del archivo, filas del archivo y esquema original en JSON). El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. 🚧 *En construcción:* retención definida a 12 meses y acceso restringido a ingeniería.
 
 ### 🥈 Silver — datos limpios y conformados
-Tipado fuerte, normalización y deduplicación por llave de negocio. Separa el origen en entidades: clientes, productos, ubicaciones, pedidos y detalle de pedido. Las filas que no cumplen una regla **no se eliminan**: pasan a tablas de **cuarentena** con el motivo, para su revisión. Cada fila conserva su trazabilidad hacia Bronze.
+Tipado fuerte, normalización y deduplicación por llave de negocio. Separa el origen en entidades: clientes, productos, ubicaciones, pedidos y detalle de pedido. Las filas que no cumplen una regla **no se eliminan**: pasan a **cuarentena** con el motivo, para su revisión (🚧 *en construcción:* ya aplicado en pedidos, se extiende al resto de las tablas). Cada fila conserva su trazabilidad hacia Bronze.
 
-### ✅ Calidad de datos — compuerta entre capas
+### ✅ Calidad de datos — compuerta entre capas &nbsp; 🚧 *En construcción*
 Dos tasks de validación (tras Silver y tras Gold) ejecutan el catálogo de reglas y guardan cada resultado en una tabla histórica. La decisión ante un incumplimiento está definida por regla: **detener** el pipeline, enviar a **cuarentena** o solo **advertir**.
 
 ### 🥇 Gold — modelo dimensional y KPIs
@@ -76,7 +78,7 @@ Esquema estrella listo para análisis, con **grano declarado** en cada tabla:
 - **2 tablas de hechos** (pedidos con SCD2 y reglas de negocio; detalle de pedido).
 - **Resumen por pedido** como base única de los indicadores.
 - **4 vistas de KPIs:** Resumen Ejecutivo, Detalle por Región, Detalle por Orden (SCD2) y Alertas, con historial por corte.
-- Cada tabla documenta en su COMMENT el grano, el owner y la versión del KPI.
+- 🚧 *En construcción:* cada tabla documentará en su COMMENT el grano, el owner y la versión del KPI.
 
 ### 📊 Entrega a negocio
 Un notebook genera el **Excel de 4 pestañas** con formato condicional tipo semáforo y variación contra el corte anterior, y lo **envía por correo** con una tabla resumen y un gráfico en el cuerpo del mensaje.
@@ -107,11 +109,11 @@ Con agrupaciones de negocio **GLOBAL** (todos los mercados) y **AMERICAS** (LATA
         dim_locations  dim_shipping_mode
 ```
 
-Las dimensiones de clientes y productos y la tabla de hechos de pedidos usan **SCD2** sobre una lista explícita de columnas de seguimiento: conservan el historial, de modo que cada pedido puede analizarse con los atributos vigentes en su momento. Las tablas tienen llaves primarias y foráneas informativas, restricciones `NOT NULL` y `CHECK`, y un `COMMENT` en cada tabla y columna.
+Las dimensiones de clientes y productos y la tabla de hechos de pedidos usan **SCD2** sobre una lista explícita de columnas de seguimiento: conservan el historial, de modo que cada pedido puede analizarse con los atributos vigentes en su momento. 🚧 *En construcción:* llaves primarias y foráneas informativas, restricciones `NOT NULL` y `CHECK`, y un `COMMENT` en cada tabla y columna.
 
 ---
 
-## 🛡️ Calidad de datos
+## 🛡️ Calidad de datos &nbsp; 🚧 *En construcción*
 
 Motor declarativo basado en dos tablas: un **catálogo de reglas** y un **historial de resultados** por ejecución.
 
@@ -128,7 +130,7 @@ Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** just
 
 ---
 
-## 🔐 Gobierno de datos (Unity Catalog)
+## 🔐 Gobierno de datos (Unity Catalog) &nbsp; 🚧 *En construcción*
 
 - **Clasificación en 4 niveles** (Público, Interno, Confidencial, Restringido) aplicada por atributo y convertida en **tags** de Unity Catalog, alineada con la Ley 29733 de protección de datos personales.
 - **Enmascaramiento dinámico** del correo del cliente y **filtro de filas** según el grupo del usuario (`dac_lectores`).
@@ -151,7 +153,7 @@ Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** just
 
 ## 🔄 Tubería de datos de punta a punta
 
-Pipeline orquestado como un único **Databricks Workflow en abanico**: las capas sin dependencia entre sí se ejecutan en paralelo. Son **22 tasks de negocio** (incluidas las dos de calidad) y **cada una tiene su task `log_error`** que, ante un fallo, registra la excepción en `etl_log` y notifica a **Slack**.
+Pipeline orquestado como un único **Databricks Workflow en abanico**: las capas sin dependencia entre sí se ejecutan en paralelo. Son tasks de negocio (🚧 *en construcción:* las dos de calidad) y **cada una tiene su task `log_error`** que, ante un fallo, registra la excepción en `etl_log` y notifica a **Slack**.
 
 <p align="center">
   <img src="docs/workflow.png" alt="Tubería de datos DataCo en abanico: cada task de negocio con su task log_error, de la ingesta al envío del correo" width="100%">
@@ -168,7 +170,7 @@ ingest_sharepoint_bronze                      (SharePoint → Bronze, por corte)
       ├─▶ slv_customer · slv_products · slv_locations · slv_orders · slv_order_details
       │
       ▼
-dq_validaciones_silver                        (compuerta de calidad)
+dq_validaciones_silver  🚧                    (compuerta de calidad, en construcción)
       │
       ├─▶ gld_customers · gld_products · gld_locations · gld_fecha · gld_shipping_mode
       │        gld_orders · gld_order_details
@@ -180,7 +182,7 @@ gld_order_summary                             (base única de los KPIs)
       │        gld_kpi_order_details · gld_kpi_alerts
       │
       ▼
-dq_validaciones_gold                          (compuerta de calidad)
+dq_validaciones_gold  🚧                      (compuerta de calidad, en construcción)
       │
       ▼
 gld_reporte_excel_correo                      (Excel de 4 pestañas + correo vía Graph)
@@ -191,7 +193,7 @@ finalize_pipeline_control                     (cierre de la ejecución)
 
 ---
 
-## ⚙️ Infraestructura como código y CI/CD
+## ⚙️ Infraestructura como código y CI/CD &nbsp; 🚧 *En construcción*
 
 - **Databricks Asset Bundles:** el Job, sus tasks, dependencias, parámetros, reintentos, notificaciones y reglas de salud (por ejemplo, alerta si la ejecución supera los 20 minutos) se describen en YAML y se despliegan con un solo comando.
 - **Ambientes dev y prod** separados por catálogo, con el mismo código y distinto destino.
@@ -212,8 +214,8 @@ finalize_pipeline_control                     (cierre de la ejecución)
 | Secretos | Databricks Secret Scopes |
 | Alertas | Webhook de Slack |
 | Reportería | openpyxl · matplotlib · Dashboards AI/BI |
-| Machine Learning | MLflow · Unity Catalog Models |
-| IaC y CI/CD | Databricks Asset Bundles · GitHub Actions |
+| Machine Learning 🚧 | MLflow · Unity Catalog Models |
+| IaC y CI/CD 🚧 | Databricks Asset Bundles · GitHub Actions |
 
 ---
 
@@ -227,18 +229,18 @@ finalize_pipeline_control                     (cierre de la ejecución)
 03_gold_dimensiones/          # 5 dimensiones + logs
 03_gold_hechos/               # pedidos, detalle de pedido + logs
 03_gold_kpis/                 # resumen por pedido, 4 KPIs, reporte + logs
-04_calidad_datos/             # catálogo de reglas, validaciones y logs
-05_ml/                        # variables, entrenamiento, registro y predicciones
-resources/                    # Asset Bundle (Job, ambientes, reglas de salud)
-.github/workflows/            # CI/CD con GitHub Actions
-docs/                         # imágenes y ADRs (decisiones de arquitectura)
+04_calidad_datos/             # 🚧 catálogo de reglas, validaciones y logs
+05_ml/                        # 🚧 variables, entrenamiento, registro y predicciones
+resources/                    # 🚧 Asset Bundle (Job, ambientes, reglas de salud)
+.github/workflows/            # 🚧 CI/CD con GitHub Actions
+docs/                         # imágenes (🚧 ADRs: decisiones de arquitectura)
 ```
 
-Cada carpeta separa el notebook de negocio (`01_negocio/`) de su notebook de manejo de errores (`02_logs/`). Cada notebook declara en su cabecera la capa, sus entradas y salidas, su owner y las reglas de calidad asociadas.
+Cada carpeta separa el notebook de negocio (`01_negocio/`) de su notebook de manejo de errores (`02_logs/`). 🚧 *En construcción:* cada notebook declarará en su cabecera la capa, sus entradas y salidas, su owner y las reglas de calidad asociadas.
 
 ---
 
-## 📚 Decisiones de arquitectura (ADRs)
+## 📚 Decisiones de arquitectura (ADRs) &nbsp; 🚧 *En construcción*
 
 Cada decisión relevante está documentada en `docs/adr/` con su contexto, la alternativa descartada y su consecuencia:
 

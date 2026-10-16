@@ -228,41 +228,6 @@
 
 <br/>
 
-### 📂 Origen de la Información
-
-La información se consume desde archivos CSV descargados de Kaggle y publicados en una biblioteca de SharePoint Online corporativa, para simular el flujo de un entorno real:
-
-```
-\\sharepoint.corp\sites\SupplyChain\ExportsDiarios\
-```
-
-<table>
-<thead>
-<tr>
-<th width="35%">📄 Archivo</th>
-<th width="65%">Descripción</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>DataCoSupplyChainDataset.csv</code> <img src="https://img.shields.io/badge/principal-0D9488?style=flat-square" alt="main"/></td>
-<td>Dataset principal de órdenes, envíos, clientes, productos y financieros. <strong>+180,000 registros, 53 columnas.</strong> Actualización semanal.</td>
-</tr>
-<tr>
-<td><code>DescriptionDataCoSupplyChain.csv</code> <img src="https://img.shields.io/badge/diccionario-0891B2?style=flat-square" alt="dict"/></td>
-<td>Diccionario de datos con la descripción de cada variable del dataset principal.</td>
-</tr>
-<tr>
-<td><code>tokenized_access_logs.csv</code> <img src="https://img.shields.io/badge/complementario-94A3B8?style=flat-square" alt="opt"/></td>
-<td>Datos de clickstream (no estructurado). Uso complementario; no forma parte del reporte principal.</td>
-</tr>
-</tbody>
-</table>
-
-> 🔗 **Fuente:** Kaggle — [DataCo Smart Supply Chain for Big Data Analysis](https://www.kaggle.com/datasets/shashwatwork/dataco-smart-supply-chain-for-big-data-analysis)
-
-<br/>
-
 ### ⚠️ Particularidades de la Fuente
 
 - 🔤 El dataset principal viene en formato CSV separado por coma, con codificación **Latin-1**. Se debe cuidar el tratamiento de acentos en nombres de ciudades y países.

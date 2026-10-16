@@ -93,7 +93,7 @@
 </tr>
 <tr>
 <td><strong>Prioridad:</strong></td>
-<td>Alta (X) &nbsp; Media ( ) &nbsp; Baja ( )</td>
+<td>Alta (X) &nbsp; Media () &nbsp; Baja ()</td>
 <td></td>
 <td></td>
 </tr>

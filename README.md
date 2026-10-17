@@ -50,9 +50,9 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 | **Fuente** | Archivo en SharePoint Online, descargado vía Microsoft Graph |
 | **Procesamiento** | PySpark + Spark SQL sobre Delta Lake |
 | **Arquitectura** | Data Lakehouse con modelo medallón |
-| **Orquestación** | Databricks Workflow (compute Serverless, en abanico; las 2 tasks de calidad 🚧 en construcción) |
+| **Orquestación** | Databricks Workflow (compute Serverless, en abanico, con dos compuertas de calidad) |
 | **Modelo** | Esquema estrella con **SCD2** en dimensiones y hechos clave |
-| **Calidad** | 🚧 *En construcción:* 18 reglas declarativas en seis dimensiones; si falla una crítica, el pipeline se detiene |
+| **Calidad** | 18 reglas declarativas en seis dimensiones, cuarentena en las 5 tablas Silver y log de deduplicación; el dato defectuoso va a cuarentena con alerta y solo los errores propios del pipeline lo detienen |
 | **Gobierno** | 🚧 *En construcción:* clasificación en 4 niveles, tags, máscara de PII, row filter y GRANT por rol en Unity Catalog |
 | **Observabilidad** | Tabla `etl_log`, alerta a Slack ante cualquier fallo, vistas de salud y dashboard AI/BI |
 | **Infraestructura** | 🚧 *En construcción:* Databricks Asset Bundles, ambientes dev y prod y CI/CD con GitHub Actions |
@@ -64,12 +64,12 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 ## 🔧 Qué hace cada capa
 
 ### 🥉 Bronze — ingesta cruda
-Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen. Cada fila lleva sus metadatos técnicos: fecha de carga, ejecución, origen y archivo (🚧 *en construcción:* hash del archivo, filas del archivo y esquema original en JSON). El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. 🚧 *En construcción:* retención definida a 12 meses y acceso restringido a ingeniería.
+Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen. Cada fila lleva sus metadatos técnicos: fecha de carga, ejecución, origen, archivo, **hash SHA-256 del archivo**, filas del archivo y esquema original en JSON. El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. La tabla define una **retención de 12 meses** del historial Delta y lleva COMMENT y tags de gobierno (capa, dominio, owner y frecuencia). 🚧 *En construcción:* acceso restringido a ingeniería.
 
 ### 🥈 Silver — datos limpios y conformados
-Tipado fuerte, normalización y deduplicación por llave de negocio. Separa el origen en entidades: clientes, productos, ubicaciones, pedidos y detalle de pedido. Las filas que no cumplen una regla **no se eliminan**: pasan a **cuarentena** con el motivo, para su revisión (🚧 *en construcción:* ya aplicado en pedidos, se extiende al resto de las tablas). Cada fila conserva su trazabilidad hacia Bronze.
+Tipado fuerte, normalización y deduplicación por llave de negocio. Separa el origen en entidades: clientes, productos, ubicaciones, pedidos y detalle de pedido. Las filas que no cumplen una regla **no se eliminan**: pasan a **cuarentena** con su motivo, en las cinco tablas, y Gold lee solo las filas válidas. Cada ejecución deja registro de la deduplicación y de la cuarentena. Cada fila conserva su trazabilidad hacia Bronze.
 
-### ✅ Calidad de datos — compuerta entre capas &nbsp; 🚧 *En construcción*
+### ✅ Calidad de datos — compuerta entre capas
 Dos tasks de validación (tras Silver y tras Gold) ejecutan el catálogo de reglas y guardan cada resultado en una tabla histórica. La decisión ante un incumplimiento está definida por regla: **detener** el pipeline, enviar a **cuarentena** o solo **advertir**.
 
 ### 🥇 Gold — modelo dimensional y KPIs
@@ -113,9 +113,30 @@ Las dimensiones de clientes y productos y la tabla de hechos de pedidos usan **S
 
 ---
 
-## 🛡️ Calidad de datos &nbsp; 🚧 *En construcción*
+## 🛡️ Calidad de datos
 
-Motor declarativo basado en dos tablas: un **catálogo de reglas** y un **historial de resultados** por ejecución.
+### Cuarentena y deduplicación con trazabilidad
+
+Ningún registro se elimina. Cada tabla Silver agrega tres columnas (`estado_calidad`: `VALIDO` o `CUARENTENA`, `motivo_cuarentena` y `fecha_procesamiento`) y **Gold lee únicamente las filas `VALIDO`**.
+
+| Tabla Silver | Grano (una fila por…) | Motivos de cuarentena |
+|---|---|---|
+| `hd_pedidos` | pedido (`order_id`) | `ORDER_ID_INVALIDO` · `FECHA_PEDIDO_INVALIDA` · `CLIENTE_NO_INFORMADO` · `RIESGO_RETRASO_INVALIDO` |
+| `hd_pedido_detalle` | ítem del pedido (`order_item_id`) | `ITEM_ID_INVALIDO` · `CANTIDAD_INVALIDA` |
+| `md_clientes` | cliente (`customer_id`) | `CLIENTE_ID_INVALIDO` |
+| `md_productos` | producto (`product_card_id`) | `PRODUCTO_ID_INVALIDO` |
+| `md_ubicaciones` | combinación geográfica (market, región, país, estado, ciudad y código postal) | `UBICACION_INCOMPLETA` |
+
+Cada fila recibe un solo motivo: el primero que se cumple, en un orden definido por tabla. Dos tablas de control en `metadata_dataco` registran cada ejecución:
+
+- **`hd_deduplicacion_log`:** filas de entrada y de salida por tabla, filas agrupadas (informativo) y **duplicados reales**, que debe ser 0.
+- **`hd_cuarentena_resumen`:** filas en cuarentena por tabla y motivo.
+
+**Resultado de la última carga:** 180,314 filas de Bronze → 65,547 pedidos, 180,314 líneas de detalle, 20,447 clientes, 118 productos y 3,800 ubicaciones; **0 duplicados reales** y 0 filas en cuarentena. Gold: 64,184 pedidos vigentes (los cancelados se excluyen por regla de negocio).
+
+### Motor declarativo de reglas
+
+El motor se basa en dos tablas: un **catálogo de reglas** y un **historial de resultados** por ejecución.
 
 | Dimensión | Qué verifica | Ejemplos |
 |---|---|---|
@@ -126,7 +147,22 @@ Motor declarativo basado en dos tablas: un **catálogo de reglas** y un **histor
 | **Consistencia** | Silver y Gold cuadran | Pedidos vigentes = pedidos no cancelados; un resumen por pedido |
 | **Actualidad** | El dato llegó a tiempo | El último corte cargado respeta el umbral de frescura |
 
-Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** justificado, **decisión** ante incumplimiento (detener, cuarentena o advertir), owner y steward. Las reglas 1–12 corren tras Silver y las de consistencia tras Gold; cada ejecución queda registrada para ver la tendencia.
+Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** justificado, **decisión** ante incumplimiento, owner y steward. El criterio es: el dato defectuoso va a **cuarentena** con alerta a Slack sin detener el pipeline; un exceso sobre el umbral solo **advierte**; el pipeline **se detiene** únicamente ante errores propios (duplicados tras deduplicar, llaves rotas en Gold o Silver que no cuadra con Gold).
+
+Dos tasks de validación (tras Silver y tras Gold) ejecutan el catálogo y guardan cada resultado en la tabla histórica, para ver la tendencia por ejecución.
+
+### 🧪 Pruebas con datos defectuosos
+
+Cada comportamiento se prueba con **datos sintéticos** en un esquema aislado (`pruebas_calidad`), con el resultado esperado definido de antemano. Los datos reales y los logs de producción no se tocan: los mismos notebooks de Silver y Gold corren apuntando, por parámetro, al esquema de prueba.
+
+| Etapa | Qué se prueba | Volumen | Resultado esperado |
+|---|---|---|---|
+| **1. Cuarentena** | Los 9 motivos, un caso por motivo | 1,000 filas por motivo y 1,000 filas sanas de control | La fila se aparta con su motivo y el pipeline sigue |
+| **1b. Prioridad** | Filas con dos defectos a la vez | 100 filas por combinación | Gana el primer motivo en el orden de la regla |
+| **2. Advertir** | Un exceso sobre el umbral | 1,000 filas o más | El pipeline sigue; queda una advertencia en el historial y llega la alerta a Slack |
+| **3. Detener** | Errores propios del pipeline (duplicados tras deduplicar, llaves rotas en Gold, Silver ≠ Gold) | 1,000 filas o más | La task falla, se registra el error y el Workflow se detiene |
+
+El notebook de verificación compara, por tabla y motivo, lo **esperado**, lo **registrado en el log** y lo **realmente guardado en Silver**, y termina con error si algún conteo no coincide. Las filas defectuosas se generan por código, a partir de filas reales con una semilla fija, así que la prueba es reproducible. El conteo esperado depende del grano de cada tabla: 1,000 filas con `customer_id` en cero producen una sola fila en cuarentena, porque comparten la misma llave.
 
 ---
 
@@ -153,7 +189,7 @@ Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** just
 
 ## 🔄 Tubería de datos de punta a punta
 
-Pipeline orquestado como un único **Databricks Workflow en abanico**: las capas sin dependencia entre sí se ejecutan en paralelo. Son tasks de negocio (🚧 *en construcción:* las dos de calidad) y **cada una tiene su task `log_error`** que, ante un fallo, registra la excepción en `etl_log` y notifica a **Slack**.
+Pipeline orquestado como un único **Databricks Workflow en abanico**: las capas sin dependencia entre sí se ejecutan en paralelo. Son tasks de negocio y de calidad, y **cada una tiene su task `log_error`** que, ante un fallo, registra la excepción en `etl_log` y notifica a **Slack**.
 
 <p align="center">
   <img src="docs/workflow.png" alt="Tubería de datos DataCo en abanico: cada task de negocio con su task log_error, de la ingesta al envío del correo" width="100%">
@@ -170,7 +206,7 @@ ingest_sharepoint_bronze                      (SharePoint → Bronze, por corte)
       ├─▶ slv_customer · slv_products · slv_locations · slv_orders · slv_order_details
       │
       ▼
-dq_validaciones_silver  🚧                    (compuerta de calidad, en construcción)
+dq_validaciones_silver                        (compuerta de calidad)
       │
       ├─▶ gld_customers · gld_products · gld_locations · gld_fecha · gld_shipping_mode
       │        gld_orders · gld_order_details
@@ -182,7 +218,7 @@ gld_order_summary                             (base única de los KPIs)
       │        gld_kpi_order_details · gld_kpi_alerts
       │
       ▼
-dq_validaciones_gold  🚧                      (compuerta de calidad, en construcción)
+dq_validaciones_gold                          (compuerta de calidad)
       │
       ▼
 gld_reporte_excel_correo                      (Excel de 4 pestañas + correo vía Graph)
@@ -229,7 +265,8 @@ finalize_pipeline_control                     (cierre de la ejecución)
 03_gold_dimensiones/          # 5 dimensiones + logs
 03_gold_hechos/               # pedidos, detalle de pedido + logs
 03_gold_kpis/                 # resumen por pedido, 4 KPIs, reporte + logs
-04_calidad_datos/             # 🚧 catálogo de reglas, validaciones y logs
+04_calidad_datos/             # catálogo de reglas, validaciones y logs
+05_pruebas_calidad/           # datos sintéticos defectuosos y verificación de cada regla
 05_ml/                        # 🚧 variables, entrenamiento, registro y predicciones
 resources/                    # 🚧 Asset Bundle (Job, ambientes, reglas de salud)
 .github/workflows/            # 🚧 CI/CD con GitHub Actions

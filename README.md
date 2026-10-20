@@ -189,7 +189,7 @@ El notebook de verificación compara, por tabla y motivo, lo **esperado**, lo **
 
 ## 🔄 Tubería de datos de punta a punta
 
-Pipeline orquestado como un único **Databricks Workflow en abanico**: las capas sin dependencia entre sí se ejecutan en paralelo. Son tasks de negocio y de calidad, y **cada una tiene su task `log_error`** que, ante un fallo, registra la excepción en `etl_log` y notifica a **Slack**.
+Pipeline orquestado como un único Databricks Workflow en abanico: dentro de cada capa, las tasks que no dependen entre sí (las 5 de Silver y las 7 de Gold) se ejecutan en paralelo. Entre capas, las tasks de calidad **`dq_validaciones_silver`** y **`dq_validaciones_gold`** validan los datos y detienen el flujo si una regla crítica falla. Cada task tiene su `log_error` que, ante un fallo, registra la excepción en `hd_etl_log` y notifica a Slack.
 
 <p align="center">
   <img src="docs/workflow.png" alt="Tubería de datos DataCo en abanico: cada task de negocio con su task log_error, de la ingesta al envío del correo" width="100%">

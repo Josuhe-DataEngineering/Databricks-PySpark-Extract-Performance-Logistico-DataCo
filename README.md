@@ -258,19 +258,21 @@ finalize_pipeline_control                     (cierre de la ejecución)
 ## 📁 Organización del repositorio
 
 ```
-00_metadata/                  # control del pipeline (prepare / finalize), logs y vistas de salud (03_observabilidad)
+00_metadata/                  # control del pipeline (prepare / finalize), logs y observabilidad (tablas de calidad, vistas de salud)
 01_ingest_sharepoint_bronze/  # ingesta a Bronze + logs
 02_silver_dimensiones/        # clientes, productos, ubicaciones + logs
 02_silver_hechos/             # pedidos, detalle de pedido + logs
-03_gold_dimensiones/          # 5 dimensiones + logs
-03_gold_hechos/               # pedidos, detalle de pedido + logs
-03_gold_kpis/                 # resumen por pedido, 4 KPIs, reporte + logs
-04_calidad_datos/             # catálogo de reglas, validaciones y logs
+03_gold_dimensiones/          # 5 dimensiones (clientes, fecha, ubicaciones, productos, modo de envío) + logs
+03_gold_hechos/               # pedidos, detalle de pedido, resumen por pedido + logs
+03_gold_kpis/                 # 4 KPIs (resumen ejecutivo, alertas, detalle de pedido, detalle por región) + logs
+04_reporte_excel_correo/      # reporte Excel enviado por correo + logs
 05_pruebas_calidad/           # datos sintéticos defectuosos y verificación de cada regla
+06_calidad_datos/             # motor de validaciones (23 reglas) + logs
+requerimientos/               # especificación no técnica del proyecto
+docs/                         # diagrama del workflow, dashboard de salud y pruebas manuales (🚧 ADRs: decisiones de arquitectura)
 05_ml/                        # 🚧 variables, entrenamiento, registro y predicciones
 resources/                    # 🚧 Asset Bundle (Job, ambientes, reglas de salud)
 .github/workflows/            # 🚧 CI/CD con GitHub Actions
-docs/                         # imágenes (🚧 ADRs: decisiones de arquitectura)
 ```
 
 Cada carpeta separa el notebook de negocio (`01_negocio/`) de su notebook de manejo de errores (`02_logs/`). 🚧 *En construcción:* cada notebook declarará en su cabecera la capa, sus entradas y salidas, su owner y las reglas de calidad asociadas.

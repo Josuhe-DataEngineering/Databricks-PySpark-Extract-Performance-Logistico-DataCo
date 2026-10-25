@@ -296,7 +296,7 @@ Cada etapa se publica por separado y tiene un criterio de terminado. Todo lo de 
 - **Segunda fuente (opcional):** una fuente pequeña adicional (por ejemplo, una API de tipo de cambio) que entra por la misma plataforma para mostrar que agregar un caso toma horas.
 - **Terminado cuando:** un cambio de esquema en la fuente se detecta antes de llegar a Silver y hay al menos un postmortem escrito.
 
-### Etapa F — Machine Learning (opcional)
+### Etapa F — Machine Learning
 Modelo de riesgo de retraso con variables sin fuga de datos, MLflow, modelo versionado en Unity Catalog y tabla de predicciones. Se entrena solo con datos reales.
 
 ---

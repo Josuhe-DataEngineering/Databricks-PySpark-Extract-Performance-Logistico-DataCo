@@ -2,9 +2,9 @@
 
 # 🏗️ DataCo Supply Chain · Data Lakehouse
 
-### Plataforma de datos **ELT end-to-end** sobre Databricks Lakehouse — de SSIS on-premise a un Lakehouse cloud gobernado, con calidad declarativa, observabilidad, infraestructura como código y Machine Learning
+### Plataforma de datos **ELT end-to-end** sobre Databricks Lakehouse — de SSIS on-premise a un Lakehouse cloud gobernado, con calidad declarativa probada, observabilidad, infraestructura como código y Machine Learning
 
-De SharePoint al correo del área de negocio: ingesta, modelo dimensional con historial, calidad de datos, gobierno, un reporte ejecutivo que se envía solo y un modelo que anticipa retrasos en los envíos.
+De SharePoint al correo del área de negocio: ingesta, modelo dimensional con historial, calidad de datos verificada con datos defectuosos, gobierno, un reporte ejecutivo que se envía solo y, en la hoja de ruta, despliegue en la nube y un modelo que anticipa retrasos en los envíos.
 
 <br>
 
@@ -19,18 +19,34 @@ De SharePoint al correo del área de negocio: ingesta, modelo dimensional con hi
 
 </div>
 
-> 🚧 **En construcción** marca lo que está diseñado pero todavía no está implementado en este repositorio. Lo demás ya corre de punta a punta.
+> 🚧 **En construcción** marca lo que está diseñado pero todavía no está implementado en este repositorio. Lo demás ya corre de punta a punta. El detalle de lo que sigue está en la [hoja de ruta](#️-hoja-de-ruta).
 
 ---
 
 ## 🎯 En una línea
 
-Tomé un reporte logístico que se armaba a mano cada semana cruzando exports en Excel (2–3 horas de un analista) y lo convertí en una **plataforma de datos gobernada de punta a punta** sobre Databricks Lakehouse: ingesta desde SharePoint, procesamiento en capas con calidad de datos automática, siete indicadores de negocio, un Excel ejecutivo enviado por correo y un modelo de riesgo de retraso, con trazabilidad, alertas y despliegue como código.
+Tomé un reporte logístico que se armaba a mano cada semana cruzando exports en Excel (2–3 horas de un analista) y lo convertí en una **plataforma de datos gobernada de punta a punta** sobre Databricks Lakehouse: ingesta desde SharePoint, procesamiento en capas con **24 reglas de calidad probadas con datos defectuosos**, siete indicadores de negocio, un Excel ejecutivo enviado por correo, trazabilidad y alertas.
 
 ## ⭐ Lo que resuelve
 
 - **Antes:** proceso manual, lento y con cifras distintas entre áreas según el corte.
-- **Ahora:** una sola corrida reproducible, con reglas de negocio centralizadas, calidad validada antes de publicar, historial de cambios, datos sensibles protegidos y entrega automática al área.
+- **Ahora:** una sola corrida reproducible, con reglas de negocio centralizadas, calidad validada antes de publicar, historial de cambios y entrega automática al área.
+
+---
+
+## 🧭 Estado del proyecto
+
+| Fase | Alcance | Estado |
+|---|---|---|
+| **1. Bronze** | Ingesta cruda en STRING, metadatos, hash del archivo, retención, idempotencia por corte | ✅ Completa |
+| **2. Silver** | Tipado, deduplicación determinista, cuarentena en las 5 tablas, logs de deduplicación y cuarentena | ✅ Completa |
+| **3. Calidad de datos** | 24 reglas declarativas, decisión por regla, dos compuertas, pruebas con datos defectuosos de los tres comportamientos | ✅ **Completa** |
+| **4. Gobierno** | Clasificación, tags, máscara de PII, row filter, GRANT por rol, diccionario de datos, linaje | 🚧 En construcción |
+| **5. Ingeniería de software y CI/CD** | Módulo compartido, `pytest`, Asset Bundles, GitHub Actions | 🚧 En construcción |
+| **6. Reprocesabilidad** | SCD2 con fecha de negocio, snapshots regenerables, backfill y reinicio | 🚧 En construcción |
+| **7. Nube y escala** | Entorno de producción en Azure Databricks con ADLS Gen2, Auto Loader, prueba de escala medida | 🚧 En construcción |
+| **8. Nivel plataforma** | Contratos de datos, evolución de esquema, SLOs, runbooks, incidentes simulados con postmortem | 🚧 En construcción |
+| **9. Machine Learning** | Modelo de riesgo de retraso con MLflow en Unity Catalog | 🚧 En construcción |
 
 ---
 
@@ -38,10 +54,10 @@ Tomé un reporte logístico que se armaba a mano cada semana cruzando exports en
 
 ```
 SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ──▶ 🥇 Gold ──▶ ✅ Calidad ──▶ 📊 Excel + 📧 Correo
-             (crudo, todo    (tipado,      (12 reglas   (modelo      (5 reglas      (reporte ejecutivo
+             (crudo, todo    (tipado,      (21 reglas   (modelo      (3 reglas      (reporte ejecutivo
               STRING +        dedupe,       + cuarentena) estrella +    de consistencia) automático)
               metadatos)      cuarentena)                 KPIs)
-                                                                   └──▶ 🤖 ML: riesgo de retraso
+                                                                   └──▶ 🤖 ML: riesgo de retraso 🚧
                     └──── 📋 etl_log + 🚨 alertas Slack + 📈 dashboard de salud en cada task ────┘
 ```
 
@@ -50,12 +66,13 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 | **Fuente** | Archivo en SharePoint Online, descargado vía Microsoft Graph |
 | **Procesamiento** | PySpark + Spark SQL sobre Delta Lake |
 | **Arquitectura** | Data Lakehouse con modelo medallón |
-| **Orquestación** | Databricks Workflow (compute Serverless, en abanico, con dos compuertas de calidad) |
+| **Orquestación** | Un único Databricks Workflow (compute Serverless) con dos compuertas de calidad y modo de prueba por parámetro |
 | **Modelo** | Esquema estrella con **SCD2** en dimensiones y hechos clave |
-| **Calidad** | 18 reglas declarativas en seis dimensiones, cuarentena en las 5 tablas Silver y log de deduplicación; el dato defectuoso va a cuarentena con alerta y solo los errores propios del pipeline lo detienen |
+| **Calidad** | **24 reglas** (21 en Silver y 3 en Gold) en seis dimensiones; el dato defectuoso va a cuarentena con alerta y solo los errores propios del pipeline lo detienen |
+| **Pruebas de calidad** | Los tres comportamientos (cuarentena, advertir, detener) verificados con el Workflow real sobre un esquema aislado, con cantidades esperadas calculadas a partir de los datos |
 | **Gobierno** | 🚧 *En construcción:* clasificación en 4 niveles, tags, máscara de PII, row filter y GRANT por rol en Unity Catalog |
 | **Observabilidad** | Tabla `etl_log`, alerta a Slack ante cualquier fallo, vistas de salud y dashboard AI/BI |
-| **Infraestructura** | 🚧 *En construcción:* Databricks Asset Bundles, ambientes dev y prod y CI/CD con GitHub Actions |
+| **Infraestructura** | 🚧 *En construcción:* Databricks Asset Bundles, entornos dev y prod, CI/CD con GitHub Actions y, opcionalmente, Terraform |
 | **Entrega** | Excel de 4 pestañas enviado por correo (Microsoft Graph) |
 | **ML** | 🚧 *En construcción:* modelo de riesgo de retraso con MLflow, registrado en Unity Catalog |
 
@@ -64,13 +81,13 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 ## 🔧 Qué hace cada capa
 
 ### 🥉 Bronze — ingesta cruda
-Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen. Cada fila lleva sus metadatos técnicos: fecha de carga, ejecución, origen, archivo, **hash SHA-256 del archivo**, filas del archivo y esquema original en JSON. El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. La tabla define una **retención de 12 meses** del historial Delta y lleva COMMENT y tags de gobierno (capa, dominio, owner y frecuencia). 🚧 *En construcción:* acceso restringido a ingeniería.
+Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas de negocio se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen; solo las columnas técnicas están tipadas. Cada fila lleva sus metadatos: fecha de carga, ejecución, origen, archivo, **hash SHA-256 del archivo**, filas del archivo y esquema original en JSON. Bronze conserva todos los registros, incluidos los duplicados: la deduplicación ocurre en Silver. El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. La tabla define una **retención de 365 días** del historial Delta y lleva COMMENT y tags de gobierno (capa, dominio, owner y frecuencia). 🚧 *En construcción:* acceso restringido a ingeniería.
 
 ### 🥈 Silver — datos limpios y conformados
-Tipado fuerte, normalización y deduplicación por llave de negocio. Separa el origen en entidades: clientes, productos, ubicaciones, pedidos y detalle de pedido. Las filas que no cumplen una regla **no se eliminan**: pasan a **cuarentena** con su motivo, en las cinco tablas, y Gold lee solo las filas válidas. Cada ejecución deja registro de la deduplicación y de la cuarentena. Cada fila conserva su trazabilidad hacia Bronze.
+Tipado fuerte con conversión segura (un texto no convertible queda en `NULL` y la fila se aísla; nunca se reemplaza por cero), normalización y deduplicación **determinista** por llave de negocio, priorizando el corte más reciente. Separa el origen en entidades: clientes, productos, ubicaciones, pedidos y detalle de pedido. Las filas que no cumplen una regla **no se eliminan**: pasan a **cuarentena** con su motivo, en las cinco tablas, y Gold lee solo las filas válidas. Cada ejecución deja registro de la deduplicación y de la cuarentena. Cada fila conserva su trazabilidad hacia Bronze.
 
 ### ✅ Calidad de datos — compuerta entre capas
-Dos tasks de validación (tras Silver y tras Gold) ejecutan el catálogo de reglas y guardan cada resultado en una tabla histórica. La decisión ante un incumplimiento está definida por regla: **detener** el pipeline, enviar a **cuarentena** o solo **advertir**.
+Dos tasks de validación (tras Silver y tras Gold) ejecutan el catálogo de reglas y guardan cada resultado en una tabla histórica. La decisión ante un incumplimiento está definida por regla: **detener** el pipeline, enviar a **cuarentena** o solo **advertir**. Si una regla detiene el pipeline, la task falla, se registra el error y el Workflow se detiene.
 
 ### 🥇 Gold — modelo dimensional y KPIs
 Esquema estrella listo para análisis, con **grano declarado** en cada tabla:
@@ -86,7 +103,7 @@ Un notebook genera el **Excel de 4 pestañas** con formato condicional tipo sem�
 ### 🤖 Machine Learning &nbsp; 🚧 *En construcción*
 > 🚧 Esta capa está en desarrollo; el pipeline de datos de arriba ya corre de punta a punta sin ella.
 
-La capa Gold alimentará un modelo que predice el **riesgo de retraso** de cada envío. Las variables se construirán sin fuga de datos, el entrenamiento se registrará en **MLflow**, el modelo quedará versionado en **Unity Catalog** y sus predicciones se guardarán en una tabla Gold.
+La capa Gold alimentará un modelo que predice el **riesgo de retraso** de cada envío. Se entrenará y evaluará **solo con datos reales**, con separación temporal (entrenar con el pasado y probar con el futuro) para evitar fuga de datos. El entrenamiento se registrará en **MLflow**, el modelo quedará versionado en **Unity Catalog** y sus predicciones se guardarán en una tabla Gold. Los datos sintéticos de volumen se usan solo para medir escala y nunca para entrenar.
 
 ---
 
@@ -121,48 +138,57 @@ Ningún registro se elimina. Cada tabla Silver agrega tres columnas (`estado_cal
 
 | Tabla Silver | Grano (una fila por…) | Motivos de cuarentena |
 |---|---|---|
-| `hd_pedidos` | pedido (`order_id`) | `ORDER_ID_INVALIDO` · `FECHA_PEDIDO_INVALIDA` · `CLIENTE_NO_INFORMADO` · `RIESGO_RETRASO_INVALIDO` |
-| `hd_pedido_detalle` | ítem del pedido (`order_item_id`) | `ITEM_ID_INVALIDO` · `CANTIDAD_INVALIDA` |
+| `hd_pedidos` | pedido (`order_id`) | `ORDER_ID_INVALIDO` · `FECHA_PEDIDO_INVALIDA` · `CLIENTE_NO_INFORMADO` · `RIESGO_RETRASO_INVALIDO` · `TIPO_DATO_INVALIDO` · `PEDIDO_SIN_CLIENTE` · `PEDIDO_SIN_UBICACION` |
+| `hd_pedido_detalle` | ítem del pedido (`order_item_id`) | `ITEM_ID_INVALIDO` · `CANTIDAD_INVALIDA` · `TIPO_DATO_INVALIDO` · `LINEA_SIN_PEDIDO` · `LINEA_SIN_PRODUCTO` |
 | `md_clientes` | cliente (`customer_id`) | `CLIENTE_ID_INVALIDO` |
-| `md_productos` | producto (`product_card_id`) | `PRODUCTO_ID_INVALIDO` |
-| `md_ubicaciones` | combinación geográfica (market, región, país, estado, ciudad y código postal) | `UBICACION_INCOMPLETA` |
+| `md_productos` | producto (`product_card_id`) | `PRODUCTO_ID_INVALIDO` · `TIPO_DATO_INVALIDO` |
+| `md_ubicaciones` | combinación geográfica (market, región, país, estado, ciudad y código postal) | `UBICACION_INCOMPLETA` · `TIPO_DATO_INVALIDO` |
 
 Cada fila recibe un solo motivo: el primero que se cumple, en un orden definido por tabla. Dos tablas de control en `metadata_dataco` registran cada ejecución:
 
 - **`hd_deduplicacion_log`:** filas de entrada y de salida por tabla, filas agrupadas (informativo) y **duplicados reales**, que debe ser 0.
 - **`hd_cuarentena_resumen`:** filas en cuarentena por tabla y motivo.
 
-**Resultado de la última carga:** 180,314 filas de Bronze → 65,547 pedidos, 180,314 líneas de detalle, 20,447 clientes, 118 productos y 3,800 ubicaciones; **0 duplicados reales** y 0 filas en cuarentena. Gold: 64,184 pedidos vigentes (los cancelados se excluyen por regla de negocio).
+**Resultado de la última corrida de producción:** 65,752 pedidos, 180,519 líneas de detalle, 20,652 clientes, 118 productos y 3,800 ubicaciones en Silver; **0 duplicados reales y 0 filas en cuarentena**. Gold: 64,385 pedidos vigentes (los cancelados se excluyen por regla de negocio). Las **24 reglas** dieron `CUMPLE`.
 
 ### Motor declarativo de reglas
 
-El motor se basa en dos tablas: un **catálogo de reglas** y un **historial de resultados** por ejecución.
+El motor se basa en dos tablas: un **catálogo de reglas** (`md_dq_reglas`) y un **historial de resultados** por ejecución (`hd_dq_resultados`).
 
 | Dimensión | Qué verifica | Ejemplos |
 |---|---|---|
 | **Unicidad** | Una fila por llave de negocio | `order_id`, `order_item_id`, `customer_id`, `product_card_id` |
 | **Completitud** | Campos obligatorios informados | Fechas de pedido y de envío |
-| **Validez** | Valores dentro del dominio | Riesgo de retraso en {0,1}; cantidad > 0 |
-| **Integridad referencial** | Las referencias existen | Detalle → pedido, pedido → cliente |
+| **Validez** | Valores dentro del dominio | Riesgo de retraso en {0,1}; cantidad > 0; texto no convertible a número |
+| **Integridad referencial** | Las referencias existen | Detalle → pedido y producto, pedido → cliente y ubicación |
 | **Consistencia** | Silver y Gold cuadran | Pedidos vigentes = pedidos no cancelados; un resumen por pedido |
-| **Actualidad** | El dato llegó a tiempo | El último corte cargado respeta el umbral de frescura |
+| **Actualidad** | El dato llegó a tiempo | El corte cargado coincide con la tabla de control; el volumen diario no cae a menos de la mitad del promedio previo |
 
-Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** justificado, **decisión** ante incumplimiento, owner y steward. El criterio es: el dato defectuoso va a **cuarentena** con alerta a Slack sin detener el pipeline; un exceso sobre el umbral solo **advierte**; el pipeline **se detiene** únicamente ante errores propios (duplicados tras deduplicar, llaves rotas en Gold o Silver que no cuadra con Gold).
+Cada regla se define en lenguaje de negocio, con **criticidad**, **umbral** justificado, **decisión** ante incumplimiento, owner y steward (como roles). El criterio es: el dato defectuoso va a **cuarentena** con alerta a Slack sin detener el pipeline; un exceso sobre el umbral solo **advierte**; el pipeline **se detiene** únicamente ante errores propios (duplicados tras deduplicar, llaves rotas en Gold o Silver que no cuadra con Gold).
 
-Dos tasks de validación (tras Silver y tras Gold) ejecutan el catálogo y guardan cada resultado en la tabla histórica, para ver la tendencia por ejecución.
+| Decisión | Reglas |
+|---|---|
+| **Detener** (7) | DQ-001 a DQ-004 (unicidad en Silver) · DQ-014, DQ-015, DQ-016 (Gold) |
+| **Cuarentena** (9) | DQ-005, DQ-006, DQ-008, DQ-009, DQ-011, DQ-012, DQ-013, DQ-023, DQ-024 |
+| **Advertir** (8) | DQ-007, DQ-010, DQ-017 a DQ-022 |
+
+Las reglas de integridad referencial **aíslan** las filas defectuosas con una consulta propia (por ejemplo, DQ-024 aparta los pedidos cuya ubicación no existe como válida en `md_ubicaciones`); las demás miden lo que Silver ya aisló al cargar.
 
 ### 🧪 Pruebas con datos defectuosos
 
-Cada comportamiento se prueba con **datos sintéticos** en un esquema aislado (`pruebas_calidad`), con el resultado esperado definido de antemano. Los datos reales y los logs de producción no se tocan: los mismos notebooks de Silver y Gold corren apuntando, por parámetro, al esquema de prueba.
+Los tres comportamientos se prueban corriendo **el Workflow real** (no notebooks sueltos) sobre un esquema aislado, `pruebas_calidad`, con datos sintéticos defectuosos generados por código a partir de filas reales. El **mismo Job** se usa para producción y para pruebas: un parámetro `modo_prueba` y los parámetros de catálogo y esquema redirigen los mismos notebooks a las tablas de prueba, sin tocar los datos ni los logs de producción. En modo prueba no se envía el correo ni se actualiza la tabla de control.
 
-| Etapa | Qué se prueba | Volumen | Resultado esperado |
-|---|---|---|---|
-| **1. Cuarentena** | Los 9 motivos, un caso por motivo | 1,000 filas por motivo y 1,000 filas sanas de control | La fila se aparta con su motivo y el pipeline sigue |
-| **1b. Prioridad** | Filas con dos defectos a la vez | 100 filas por combinación | Gana el primer motivo en el orden de la regla |
-| **2. Advertir** | Un exceso sobre el umbral | 1,000 filas o más | El pipeline sigue; queda una advertencia en el historial y llega la alerta a Slack |
-| **3. Detener** | Errores propios del pipeline (duplicados tras deduplicar, llaves rotas en Gold, Silver ≠ Gold) | 1,000 filas o más | La task falla, se registra el error y el Workflow se detiene |
+Las cantidades esperadas **no están escritas a mano**: se calculan a partir de los datos inyectados y se guardan junto a ellos (`casos_esperados` y `casos_esperados_dq`).
 
-El notebook de verificación compara, por tabla y motivo, lo **esperado**, lo **registrado en el log** y lo **realmente guardado en Silver**, y termina con error si algún conteo no coincide. Las filas defectuosas se generan por código, a partir de filas reales con una semilla fija, así que la prueba es reproducible. El conteo esperado depende del grano de cada tabla: 1,000 filas con `customer_id` en cero producen una sola fila en cuarentena, porque comparten la misma llave.
+| Etapa | Qué se prueba | Resultado observado |
+|---|---|---|
+| **1. Cuarentena** | Un caso por motivo sobre 10,500 filas de Bronze (sanas y defectuosas) | Las filas se apartan con su motivo y el pipeline sigue: DQ-024 aisló 1,000 pedidos, DQ-011 733 líneas, DQ-013 452 pedidos; Gold queda consistente (DQ-014 y DQ-015 en `CUMPLE`); la comparación contra lo esperado coincide en todos los casos |
+| **2. Advertir** | Fechas de envío vacías y estados de pedido desconocidos | DQ-007 y DQ-010 quedan en `ADVERTENCIA` con **100 filas detectadas, 100 esperadas**; el pipeline sigue y llega la alerta |
+| **3. Detener** | Un cliente duplicado sembrado | DQ-003 detecta **1 duplicado (1 esperado)** y queda `DETENIDO`; Silver termina, Gold no corre y llega la alerta de fallo |
+
+Antes de cada escenario se reinician las tablas Silver y Gold de prueba, porque la dimensión de pedidos Gold es SCD2 y conserva historial entre corridas. El procedimiento paso a paso está en [`docs/tests_manuales.md`](docs/tests_manuales.md).
+
+> 🚧 *En construcción:* que las corridas de prueba también registren el mensaje de error de la excepción en su propio log (hoy el detalle queda en la salida de la task).
 
 ---
 
@@ -172,6 +198,7 @@ El notebook de verificación compara, por tabla y motivo, lo **esperado**, lo **
 - **Enmascaramiento dinámico** del correo del cliente y **filtro de filas** según el grupo del usuario (`dac_lectores`).
 - **GRANT por rol:** Bronze solo para ingeniería; Silver para analistas avanzados; Gold para consumo.
 - **Owner por rol** y steward en los tags de cada tabla, **diccionario de datos** como tabla consultable y **linaje** completo Bronze → Silver → Gold.
+
 ---
 
 ## 📈 Observabilidad
@@ -189,52 +216,88 @@ El notebook de verificación compara, por tabla y motivo, lo **esperado**, lo **
 
 ## 🔄 Tubería de datos de punta a punta
 
-Pipeline orquestado como un único Databricks Workflow en abanico: dentro de cada capa, las tasks que no dependen entre sí (las 5 de Silver y las 7 de Gold) se ejecutan en paralelo. Entre capas, las tasks de calidad **`dq_validaciones_silver`** y **`dq_validaciones_gold`** validan los datos y detienen el flujo si una regla crítica falla. Cada task tiene su `log_error` que, ante un fallo, registra la excepción en `hd_etl_log` y notifica a Slack.
+Pipeline orquestado como un único Databricks Workflow, con las tasks encadenadas en una sola línea. Es una decisión medida: en Databricks Free Edition, la cadena tarda unos **15 minutos** frente a unos **35** del abanico, por la contención del cómputo serverless compartido; el detalle quedará en un ADR. Entre capas, las tasks de calidad **`dq_validaciones_silver`** y **`dq_validaciones_gold`** validan los datos y detienen el flujo si una regla crítica falla. Cada task tiene su `log_error` que, ante un fallo, registra la excepción en `hd_etl_log` y notifica a Slack. Una condición `es_modo_prueba` decide si la ejecución es de producción (usa y cierra la tabla de control) o de prueba (omite el control y el correo).
 
 <p align="center">
-  <img src="docs/workflow.png" alt="Tubería de datos DataCo en abanico: cada task de negocio con su task log_error, de la ingesta al envío del correo" width="100%">
+  <img src="docs/workflow.png" alt="Tubería de datos DataCo: cada task de negocio con su task log_error, de la ingesta al envío del correo" width="100%">
 </p>
 
 **Recorrido de una ejecución**
 
 ```
-prepare_pipeline_control
-      │
-      ▼
-ingest_sharepoint_bronze                      (SharePoint → Bronze, por corte)
-      │
-      ├─▶ slv_customer · slv_products · slv_locations · slv_orders · slv_order_details
-      │
-      ▼
-dq_validaciones_silver                        (compuerta de calidad)
-      │
-      ├─▶ gld_customers · gld_products · gld_locations · gld_fecha · gld_shipping_mode
-      │        gld_orders · gld_order_details
-      │
-      ▼
-gld_order_summary                             (base única de los KPIs)
-      │
-      ├─▶ gld_kpi_executive_summary · gld_kpi_region_detail
-      │        gld_kpi_order_details · gld_kpi_alerts
-      │
-      ▼
-dq_validaciones_gold                          (compuerta de calidad)
-      │
-      ▼
-gld_reporte_excel_correo                      (Excel de 4 pestañas + correo vía Graph)
-      │
-      ▼
-finalize_pipeline_control                     (cierre de la ejecución)
+es_modo_prueba ──(false)──▶ prepare_pipeline_control
+      │                              │
+      │                              ▼
+      │                  ingest_sharepoint_bronze                 (SharePoint → Bronze, por corte)
+      │                              │
+      ▼                              ▼
+ (true: modo prueba)         slv_customers → slv_products → slv_locations → slv_orders → slv_order_details
+                                     │
+                                     ▼
+                           dq_validaciones_silver                 (compuerta de calidad, 21 reglas)
+                                     │
+                                     ▼
+              gld_customers → gld_fecha → gld_locations → gld_products → gld_shipping_mode
+                                     → gld_orders → gld_order_details
+                                     │
+                                     ▼
+                           gld_order_summary                      (base única de los KPIs)
+                                     │
+                                     ▼
+                           dq_validaciones_gold                   (compuerta de calidad, 3 reglas)
+                                     │
+                                     ▼
+       gld_kpi_executive_summary → gld_kpi_order_details → gld_kpi_alerts → gld_kpi_region_detail
+                                     │
+                                     ▼
+               gld_reporte_excel_correo     (Excel de 4 pestañas + correo vía Graph; solo en producción)
+                                     │
+                                     ▼
+               finalize_pipeline_control    (cierre de la ejecución; solo en producción)
 ```
 
 ---
 
-## ⚙️ Infraestructura como código y CI/CD &nbsp; 🚧 *En construcción*
+## 🗺️ Hoja de ruta
 
-- **Databricks Asset Bundles:** el Job, sus tasks, dependencias, parámetros, reintentos, notificaciones y reglas de salud (por ejemplo, alerta si la ejecución supera los 20 minutos) se describen en YAML y se despliegan con un solo comando.
-- **Ambientes dev y prod** separados por catálogo, con el mismo código y distinto destino.
-- **GitHub Actions:** en cada pull request se validan el bundle y el estilo del código; al fusionar a `main` se despliega.
-- **Secretos** solo en Databricks Secret Scopes; ningún secreto ni dato sensible en el repositorio.
+Cada etapa se publica por separado y tiene un criterio de terminado. Todo lo de esta sección es 🚧 *en construcción*.
+
+### Etapa A — Ingeniería de software y CI/CD
+- **Módulo compartido** (`clean_str`, `clean_num`, `dedup_reciente`) en un archivo `.py` importado por los notebooks, en lugar de repetirse en cada uno.
+- **Pruebas unitarias con `pytest`** sobre esas funciones y sobre la lógica de las reglas.
+- **Databricks Asset Bundles:** el Job, sus tasks, dependencias, parámetros, reintentos, notificaciones y reglas de salud (por ejemplo, alerta si la ejecución supera los 20 minutos) descritos en YAML, con targets `dev` y `prod`.
+- **GitHub Actions:** en cada pull request se validan el bundle, el estilo y las pruebas; al fusionar a `main` se despliega.
+- **Terminado cuando:** un cambio en `main` ejecuta las pruebas y despliega a `dev` sin pasos manuales.
+
+### Etapa B — Gobierno y metadatos
+- Clasificación, tags, máscara y row filter, GRANT por rol, diccionario de datos y captura del linaje de Unity Catalog.
+- COMMENT con grano, owner y versión de KPI en cada tabla; llaves informativas y restricciones `NOT NULL` y `CHECK`.
+- Bloque de trazabilidad estándar en la cabecera de cada notebook.
+- **Terminado cuando:** cualquier tabla se explica sola desde el catálogo y la columna `customer_email` se ve enmascarada para el grupo lector.
+
+### Etapa C — Reprocesabilidad
+- SCD2 con fecha de negocio en lugar de la fecha del sistema; snapshots de KPIs regenerables para cortes pasados.
+- Cierre en el SCD2 de los pedidos que pasan a cancelados.
+- Backfill por rango de ventanas, notebook de reinicio y marca de ejecuciones interrumpidas en el log.
+- Registro del mensaje de error también en las corridas de prueba (parametrizar los `log_error_*`).
+- **Terminado cuando:** se puede recargar cualquier rango de cortes sin tocar tablas a mano y el resultado es el mismo.
+
+### Etapa D — Nube y escala
+- **Dos entornos con el mismo código:** Databricks Free Edition como `dev` y **Azure Databricks** como `prod`, con almacenamiento externo en **ADLS Gen2**, Unity Catalog con ubicación externa y presupuesto con alerta de costo.
+- **Ingesta incremental con Auto Loader** sobre archivos que llegan al almacenamiento, en lugar de leer el archivo completo por ventana.
+- **Prueba de escala:** datos sintéticos de decenas o cientos de millones de filas, en un esquema aparte y declarados como sintéticos, con tiempos y costos antes y después de `OPTIMIZE` y liquid clustering.
+- **Infraestructura con Terraform** (opcional) para el almacenamiento, las credenciales y los catálogos.
+- **Terminado cuando:** el mismo bundle despliega a `dev` y a `prod` y existe un ADR con los tiempos y costos medidos.
+
+### Etapa E — Nivel plataforma
+- **Contratos de datos:** un archivo YAML por tabla con columnas, tipos, propietario y frescura exigida, validado automáticamente, y pruebas de qué pasa cuando la fuente agrega, quita o cambia el tipo de una columna.
+- **SLOs:** metas de frescura, éxito y duración calculadas sobre `hd_etl_log`, con alerta si se incumplen.
+- **Runbooks** para los fallos más comunes e **incidentes simulados con postmortem** publicados en el repositorio.
+- **Segunda fuente (opcional):** una fuente pequeña adicional (por ejemplo, una API de tipo de cambio) que entra por la misma plataforma para mostrar que agregar un caso toma horas.
+- **Terminado cuando:** un cambio de esquema en la fuente se detecta antes de llegar a Silver y hay al menos un postmortem escrito.
+
+### Etapa F — Machine Learning (opcional)
+Modelo de riesgo de retraso con variables sin fuga de datos, MLflow, modelo versionado en Unity Catalog y tabla de predicciones. Se entrena solo con datos reales.
 
 ---
 
@@ -250,8 +313,10 @@ finalize_pipeline_control                     (cierre de la ejecución)
 | Secretos | Databricks Secret Scopes |
 | Alertas | Webhook de Slack |
 | Reportería | openpyxl · matplotlib · Dashboards AI/BI |
+| Pruebas 🚧 | pytest |
+| IaC y CI/CD 🚧 | Databricks Asset Bundles · GitHub Actions · Terraform (opcional) |
+| Nube 🚧 | Azure Databricks · ADLS Gen2 · Auto Loader |
 | Machine Learning 🚧 | MLflow · Unity Catalog Models |
-| IaC y CI/CD 🚧 | Databricks Asset Bundles · GitHub Actions |
 
 ---
 
@@ -266,12 +331,13 @@ finalize_pipeline_control                     (cierre de la ejecución)
 03_gold_hechos/               # pedidos, detalle de pedido, resumen por pedido + logs
 03_gold_kpis/                 # 4 KPIs (resumen ejecutivo, alertas, detalle de pedido, detalle por región) + logs
 04_reporte_excel_correo/      # reporte Excel enviado por correo + logs
-05_pruebas_calidad/           # datos sintéticos defectuosos y verificación de cada regla
-06_calidad_datos/             # motor de validaciones (23 reglas) + logs
+05_pruebas_calidad/           # datos sintéticos defectuosos y verificación de cada comportamiento (cuarentena, advertir, detener)
+06_calidad_datos/             # motor de validaciones (24 reglas) + logs
 requerimientos/               # especificación no técnica del proyecto
 docs/                         # diagrama del workflow, dashboard de salud y pruebas manuales (🚧 ADRs: decisiones de arquitectura)
 05_ml/                        # 🚧 variables, entrenamiento, registro y predicciones
-resources/                    # 🚧 Asset Bundle (Job, ambientes, reglas de salud)
+resources/                    # 🚧 Asset Bundle (Job, entornos dev y prod, reglas de salud)
+src/ y tests/                 # 🚧 módulo compartido y pruebas con pytest
 .github/workflows/            # 🚧 CI/CD con GitHub Actions
 ```
 
@@ -281,20 +347,25 @@ Cada carpeta separa el notebook de negocio (`01_negocio/`) de su notebook de man
 
 ## 📚 Decisiones de arquitectura (ADRs) &nbsp; 🚧 *En construcción*
 
-Cada decisión relevante está documentada en `docs/adr/` con su contexto, la alternativa descartada y su consecuencia:
+Cada decisión relevante estará documentada en `docs/adr/` con su contexto, la alternativa descartada y su consecuencia:
 
 - Bronze en STRING y sin inferencia de tipos, y su retención.
 - Cuarentena en lugar de eliminación de filas.
+- Conversión segura de tipos: `NULL` y cuarentena en vez de cero por defecto.
 - Prefijos de tabla (`md_`, `hd_`, `desc_`) y excepciones documentadas.
 - Llaves sustitutas por hash estable en dimensiones.
 - Parámetros de calidad: umbrales y decisión por regla.
+- Un solo Job con modo de prueba por parámetro, en lugar de un Job de pruebas aparte.
+- Workflow en cadena frente a en abanico, con los tiempos medidos.
+- Serverless: sin autoscale ni auto-terminación, y por qué no hay particionado ni Z-ORDER a esta escala.
 - Por qué un Lakehouse para un volumen moderado: gobierno, trazabilidad y reproducibilidad, no escala.
+- Datos sintéticos de volumen solo para escala, nunca para ML.
 
 ---
 
 ## 🧩 Contexto del proyecto
 
-Proyecto que **migra un proceso tradicional** (SQL Server Integration Services sobre Data Warehouse on-premise) a una **arquitectura Lakehouse en la nube**, conservando las reglas de negocio del reporte original. 
+Proyecto que **migra un proceso tradicional** (SQL Server Integration Services sobre Data Warehouse on-premise) a una **arquitectura Lakehouse en la nube**, conservando las reglas de negocio del reporte original.
 El dataset es público (*DataCo Smart Supply Chain*, Kaggle) y la infraestructura es real.
 
 ---

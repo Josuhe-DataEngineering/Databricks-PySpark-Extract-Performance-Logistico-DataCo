@@ -27,6 +27,10 @@ Se crea `modulos_compartidos/transformaciones_silver.py` con las funciones
 importan agregando al `sys.path` la raíz del repositorio, calculada desde la
 ubicación del notebook.
 
+Solo se centralizan los helpers que usan varias tablas. Las funciones
+específicas de una tabla (por ejemplo `clean_date`, que solo usa `slv_orders`)
+permanecen en su notebook.
+
 ## Motivos
 
 - Una sola definición: se corrige una vez y aplica a las cinco tablas.

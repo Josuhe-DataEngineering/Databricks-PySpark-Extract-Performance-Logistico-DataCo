@@ -1,0 +1,40 @@
+name: Deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+  BUNDLE_VAR_alert_email: ${{ secrets.BUNDLE_VAR_alert_email }}
+
+jobs:
+  validar:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
+      - name: Validar el bundle
+        run: databricks bundle validate -t dev
+
+  desplegar:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+      - name: Instalar Databricks CLI
+        uses: databricks/setup-cli@main
+      - name: Validar el bundle
+        run: databricks bundle validate -t dev
+      - name: Desplegar el Job en dev
+        run: databricks bundle deploy -t dev

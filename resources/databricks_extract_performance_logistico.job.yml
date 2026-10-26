@@ -1,0 +1,622 @@
+resources:
+  jobs:
+    databricks_extract_performance_logistico:
+      name: databricks_extract_performance_logistico
+      tasks:
+        - task_key: dq_validaciones_silver
+          depends_on:
+            - task_key: slv_customers
+            - task_key: slv_products
+            - task_key: slv_locations
+            - task_key: slv_orders
+            - task_key: slv_order_details
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              momento: silver
+            notebook_path: ../06_calidad_datos/01_negocio/dq_validaciones.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_customers
+          depends_on:
+            - task_key: dq_validaciones_silver
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_dimensiones/01_negocio/gld_dim_customers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_fecha
+          depends_on:
+            - task_key: dq_validaciones_silver
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_dimensiones/01_negocio/gld_dim_fecha.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_locations
+          depends_on:
+            - task_key: dq_validaciones_silver
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_dimensiones/01_negocio/gld_dim_locations.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_order_details
+          depends_on:
+            - task_key: gld_orders
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_hechos/01_negocio/gld_fact_order_details.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_orders
+          depends_on:
+            - task_key: gld_customers
+            - task_key: gld_fecha
+            - task_key: gld_locations
+            - task_key: gld_products
+            - task_key: gld_shipping_mode
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_hechos/01_negocio/gld_fact_orders.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_products
+          depends_on:
+            - task_key: dq_validaciones_silver
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_dimensiones/01_negocio/gld_dim_products.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_shipping_mode
+          depends_on:
+            - task_key: dq_validaciones_silver
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_dimensiones/01_negocio/gld_dim_shipping_mode.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_order_summary
+          depends_on:
+            - task_key: gld_order_details
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_hechos/01_negocio/gld_order_summary.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: dq_validaciones_gold
+          depends_on:
+            - task_key: gld_order_summary
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              momento: gold
+            notebook_path: ../06_calidad_datos/01_negocio/dq_validaciones.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_kpi_executive_summary
+          depends_on:
+            - task_key: dq_validaciones_gold
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_kpis/01_negocio/gld_kpi_executive_summary.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_kpi_order_details
+          depends_on:
+            - task_key: dq_validaciones_gold
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_kpis/01_negocio/gld_kpi_order_detail.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_kpi_alerts
+          depends_on:
+            - task_key: dq_validaciones_gold
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_kpis/01_negocio/gld_kpi_alerts.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_reporte_excel_correo
+          depends_on:
+            - task_key: gld_kpi_executive_summary
+            - task_key: gld_kpi_order_details
+            - task_key: gld_kpi_alerts
+            - task_key: gld_kpi_region_detail
+          disabled: false
+          email_notifications: {}
+          environment_key: Default
+          notebook_task:
+            notebook_path: ../04_reporte_excel_correo/01_negocio/gld_reporte_excel_correo.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: finalize_pipeline_control
+          depends_on:
+            - task_key: gld_reporte_excel_correo
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../00_metadata/01_control_pipeline/finalize_pipeline_control.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: gld_kpi_region_detail
+          depends_on:
+            - task_key: dq_validaciones_gold
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../03_gold_kpis/01_negocio/gld_kpi_region_detail.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: log_error_dq_validaciones_gold
+          depends_on:
+            - task_key: dq_validaciones_gold
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.dq_validaciones_gold.error_code}}'
+              result_state: '{{tasks.dq_validaciones_gold.result_state}}'
+              run_id: '{{tasks.dq_validaciones_gold.run_id}}'
+            notebook_path: ../06_calidad_datos/02_logs/log_error_dq_validaciones_gold.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_dq_validaciones_silver
+          depends_on:
+            - task_key: dq_validaciones_silver
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.dq_validaciones_silver.error_code}}'
+              result_state: '{{tasks.dq_validaciones_silver.result_state}}'
+              run_id: '{{tasks.dq_validaciones_silver.run_id}}'
+            notebook_path: ../06_calidad_datos/02_logs/log_error_dq_validaciones_silver.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_customers
+          depends_on:
+            - task_key: gld_customers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_customers.error_code}}'
+              result_state: '{{tasks.gld_customers.result_state}}'
+              run_id: '{{tasks.gld_customers.run_id}}'
+            notebook_path: ../03_gold_dimensiones/02_logs/log_error_gld_dim_customers.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_fecha
+          depends_on:
+            - task_key: gld_fecha
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_fecha.error_code}}'
+              result_state: '{{tasks.gld_fecha.result_state}}'
+              run_id: '{{tasks.gld_fecha.run_id}}'
+            notebook_path: ../03_gold_dimensiones/02_logs/log_error_gld_dim_fecha.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_kpi_alerts
+          depends_on:
+            - task_key: gld_kpi_alerts
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_kpi_alerts.error_code}}'
+              result_state: '{{tasks.gld_kpi_alerts.result_state}}'
+              run_id: '{{tasks.gld_kpi_alerts.run_id}}'
+            notebook_path: ../03_gold_kpis/02_logs/log_error_gld_kpi_alertas.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_kpi_executive_summary
+          depends_on:
+            - task_key: gld_kpi_executive_summary
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_kpi_executive_summary.error_code}}'
+              result_state: '{{tasks.gld_kpi_executive_summary.result_state}}'
+              run_id: '{{tasks.gld_kpi_executive_summary.run_id}}'
+            notebook_path: ../03_gold_kpis/02_logs/log_error_gld_kpi_resumen_ejecutivo.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_kpi_order_details
+          depends_on:
+            - task_key: gld_kpi_order_details
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_kpi_order_details.error_code}}'
+              result_state: '{{tasks.gld_kpi_order_details.result_state}}'
+              run_id: '{{tasks.gld_kpi_order_details.run_id}}'
+            notebook_path: ../03_gold_kpis/02_logs/log_error_gld_kpi_detalle_orden.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_kpi_region_detail
+          depends_on:
+            - task_key: gld_kpi_region_detail
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_kpi_region_detail.error_code}}'
+              result_state: '{{tasks.gld_kpi_region_detail.result_state}}'
+              run_id: '{{tasks.gld_kpi_region_detail.run_id}}'
+            notebook_path: ../03_gold_kpis/02_logs/log_error_gld_kpi_detalle_region.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_locations
+          depends_on:
+            - task_key: gld_locations
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_locations.error_code}}'
+              result_state: '{{tasks.gld_locations.result_state}}'
+              run_id: '{{tasks.gld_locations.run_id}}'
+            notebook_path: ../03_gold_dimensiones/02_logs/log_error_gld_dim_locations.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_order_Details
+          depends_on:
+            - task_key: gld_order_details
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_order_details.error_code}}'
+              result_state: '{{tasks.gld_order_details.result_state}}'
+              run_id: '{{tasks.gld_order_details.run_id}}'
+            notebook_path: ../03_gold_hechos/02_logs/log_error_gld_fact_order_details.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_order_summary
+          depends_on:
+            - task_key: gld_order_summary
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_order_summary.error_code}}'
+              result_state: '{{tasks.gld_order_summary.result_state}}'
+              run_id: '{{tasks.gld_order_summary.run_id}}'
+            notebook_path: ../03_gold_hechos/02_logs/log_error_gld_order_summary.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_products
+          depends_on:
+            - task_key: gld_products
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_products.error_code}}'
+              result_state: '{{tasks.gld_products.result_state}}'
+              run_id: '{{tasks.gld_products.run_id}}'
+            notebook_path: ../03_gold_dimensiones/02_logs/log_error_gld_dim_products.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_gld_reporte_excel_correo
+          depends_on:
+            - task_key: gld_reporte_excel_correo
+          disabled: false
+          email_notifications: {}
+          environment_key: Default
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_reporte_excel_correo.error_code}}'
+              result_state: '{{tasks.gld_reporte_excel_correo.result_state}}'
+              run_id: '{{tasks.gld_reporte_excel_correo.run_id}}'
+            notebook_path: ../04_reporte_excel_correo/02_logs/log_error_gld_reporte_excel_correo.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_orders
+          depends_on:
+            - task_key: gld_orders
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_orders.error_code}}'
+              result_state: '{{tasks.gld_orders.result_state}}'
+              run_id: '{{tasks.gld_orders.run_id}}'
+            notebook_path: ../03_gold_hechos/02_logs/log_error_gld_fact_orders.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_error_shipping_mode
+          depends_on:
+            - task_key: gld_shipping_mode
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.gld_shipping_mode.error_code}}'
+              result_state: '{{tasks.gld_shipping_mode.result_state}}'
+              run_id: '{{tasks.gld_shipping_mode.run_id}}'
+            notebook_path: ../03_gold_dimensiones/02_logs/log_error_gld_dim_shipping_mode.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_finalize_pipeline_control
+          depends_on:
+            - task_key: finalize_pipeline_control
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.finalize_pipeline_control.error_code}}'
+              log_id: '{{tasks.finalize_pipeline_control.values.log_id}}'
+              result_state: '{{tasks.finalize_pipeline_control.result_state}}'
+              run_id: '{{tasks.finalize_pipeline_control.run_id}}'
+            notebook_path: ../00_metadata/02_logs/log_error_finalize_pipeline_control.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: prepare_pipeline_control
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../00_metadata/01_control_pipeline/prepare_pipeline_control.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: ingest_sharepoint_bronze
+          depends_on:
+            - task_key: prepare_pipeline_control
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../01_ingest_sharepoint_bronze/01_ingest/ingest_sharepoint_bronze.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: log_ingest_sharepoint_brz
+          depends_on:
+            - task_key: ingest_sharepoint_bronze
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.ingest_sharepoint_bronze.error_code}}'
+              result_state: '{{tasks.ingest_sharepoint_bronze.result_state}}'
+              run_id: '{{tasks.ingest_sharepoint_bronze.run_id}}'
+            notebook_path: ../01_ingest_sharepoint_bronze/02_logs/log_error_ingest_sharepoint_bronze.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: log_prepare_pipeline_control
+          depends_on:
+            - task_key: prepare_pipeline_control
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.prepare_pipeline_control.error_code}}'
+              result_state: '{{tasks.prepare_pipeline_control.result_state}}'
+              run_id: '{{tasks.prepare_pipeline_control.run_id}}'
+            notebook_path: ../00_metadata/02_logs/log_error_prepare_pipeline_control.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: slv_customers
+          depends_on:
+            - task_key: ingest_sharepoint_bronze
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../02_silver_dimensiones/01_negocio/slv_customers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: log_error_slv_customer
+          depends_on:
+            - task_key: slv_customers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.slv_customers.error_code}}'
+              result_state: '{{tasks.slv_customers.result_state}}'
+              run_id: '{{tasks.slv_customers.run_id}}'
+            notebook_path: ../02_silver_dimensiones/02_logs/log_error_slv_customers.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: slv_products
+          depends_on:
+            - task_key: ingest_sharepoint_bronze
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../02_silver_dimensiones/01_negocio/slv_products.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: log_error_slv_products
+          depends_on:
+            - task_key: slv_products
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.slv_products.error_code}}'
+              result_state: '{{tasks.slv_products.result_state}}'
+              run_id: '{{tasks.slv_products.run_id}}'
+            notebook_path: ../02_silver_dimensiones/02_logs/log_error_slv_products.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: slv_locations
+          depends_on:
+            - task_key: ingest_sharepoint_bronze
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../02_silver_dimensiones/01_negocio/slv_locations.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: log_error_slv_locations
+          depends_on:
+            - task_key: slv_locations
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.slv_locations.error_code}}'
+              result_state: '{{tasks.slv_locations.result_state}}'
+              run_id: '{{tasks.slv_locations.run_id}}'
+            notebook_path: ../02_silver_dimensiones/02_logs/log_error_slv_locations.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: slv_orders
+          depends_on:
+            - task_key: ingest_sharepoint_bronze
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../02_silver_hechos/01_negocio/slv_orders.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: log_error_slv_orders
+          depends_on:
+            - task_key: slv_orders
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.slv_orders.error_code}}'
+              result_state: '{{tasks.slv_orders.result_state}}'
+              run_id: '{{tasks.slv_orders.run_id}}'
+            notebook_path: ../02_silver_hechos/02_logs/log_error_slv_orders.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+        - task_key: slv_order_details
+          depends_on:
+            - task_key: ingest_sharepoint_bronze
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../02_silver_hechos/01_negocio/slv_orders_details.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        - task_key: log_error_slv_orders_details
+          depends_on:
+            - task_key: slv_order_details
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              error_code: '{{tasks.slv_order_details.error_code}}'
+              result_state: '{{tasks.slv_order_details.result_state}}'
+              run_id: '{{tasks.slv_order_details.run_id}}'
+            notebook_path: ../02_silver_hechos/02_logs/log_error_slv_orders_details.ipynb
+            source: WORKSPACE
+          run_if: AT_LEAST_ONE_FAILED
+          timeout_seconds: 0
+      parameters:
+        - name: SP_CLIENT_ID
+          default: ""
+        - name: SP_CLIENT_SECRET
+          default: '{{secrets/sharepoint/sp_client_secret}}'
+        - name: SP_TENANT_ID
+          default: ""
+        - name: modo_prueba
+          default: "false"
+        - name: id_ejecucion_manual
+          default: ""
+        - name: bronze_catalog
+          default: brz_dataco
+        - name: bronze_schema
+          default: sharepoint
+        - name: bronze_table
+          default: raw_supply_chain
+        - name: silver_catalog
+          default: slv_dataco
+        - name: silver_schema
+          default: supply_chain
+        - name: gold_catalog
+          default: gld_dataco
+        - name: gold_schema
+          default: supply_chain
+        - name: metadata_catalog
+          default: metadata_dataco
+        - name: metadata_schema
+          default: supply_chain
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}
+        on_duration_warning_threshold_exceeded:
+          - ${var.alert_email}
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "6"
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 2100
+      max_concurrent_runs: 1
+      performance_target: PERFORMANCE_OPTIMIZED
+      queue:
+        enabled: true
+      timeout_seconds: 0
+      webhook_notifications: {}

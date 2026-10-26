@@ -1,0 +1,15 @@
+bundle:
+  name: dataco_lakehouse
+
+include:
+  - resources/*.yml
+
+variables:
+  alert_email:
+    description: Correo que recibe las alertas del Job
+
+targets:
+  dev:
+    default: true
+    presets:
+      name_prefix: "[dev jsosa] "

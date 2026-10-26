@@ -65,7 +65,7 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 | **Fuente** | Archivo en SharePoint Online, descargado vía Microsoft Graph |
 | **Procesamiento** | PySpark + Spark SQL sobre Delta Lake |
 | **Arquitectura** | Data Lakehouse con modelo medallón |
-| **Orquestación** | Un único Databricks Workflow (compute Serverless) con dos compuertas de calidad y modo de prueba por parámetro |
+| **Orquestación** | Un único Databricks Workflow (compute Serverless) en abanico, con dos compuertas de calidad, descrito como código y con alerta si la ejecución supera los 35 minutos |
 | **Modelo** | Esquema estrella con **SCD2** en dimensiones y hechos clave |
 | **Calidad** | **24 reglas** (21 en Silver y 3 en Gold) en seis dimensiones; el dato defectuoso va a cuarentena con alerta y solo los errores propios del pipeline lo detienen |
 | **Pruebas de calidad** | Los tres comportamientos (cuarentena, advertir, detener) verificados con el Workflow real sobre un esquema aislado, con cantidades esperadas calculadas a partir de los datos |
@@ -175,7 +175,7 @@ Las reglas de integridad referencial **aíslan** las filas defectuosas con una c
 
 ### 🧪 Pruebas con datos defectuosos
 
-Los tres comportamientos se prueban corriendo **el Workflow real** (no notebooks sueltos) sobre un esquema aislado, `pruebas_calidad`, con datos sintéticos defectuosos generados por código a partir de filas reales. El **mismo Job** se usa para producción y para pruebas: un parámetro `modo_prueba` y los parámetros de catálogo y esquema redirigen los mismos notebooks a las tablas de prueba, sin tocar los datos ni los logs de producción. En modo prueba no se envía el correo ni se actualiza la tabla de control.
+Los tres comportamientos se prueban corriendo **el Workflow real** (no notebooks sueltos) sobre un esquema aislado, `pruebas_calidad`, con datos sintéticos defectuosos generados por código a partir de filas reales. El **mismo Job** se usa para producción y para pruebas: los parámetros de catálogo y esquema redirigen los mismos notebooks a las tablas de prueba, sin tocar los datos ni los logs de producción. Durante estas pruebas, una condición `es_modo_prueba` omitía el correo y la actualización de la tabla de control; esa condición no está en el Job versionado actual y su reactivación está en la etapa C.
 
 Las cantidades esperadas **no están escritas a mano**: se calculan a partir de los datos inyectados y se guardan junto a ellos (`casos_esperados` y `casos_esperados_dq`).
 
@@ -224,44 +224,47 @@ Antes de cada escenario se reinician las tablas Silver y Gold de prueba, porque 
 
 ## 🔄 Tubería de datos de punta a punta
 
-Pipeline orquestado como un único Databricks Workflow, con las tasks encadenadas en una sola línea. Es una decisión medida: en Databricks Free Edition, la cadena tarda unos **15 minutos** frente a unos **35** del abanico, por la contención del cómputo serverless compartido; el detalle quedará en un ADR. Entre capas, las tasks de calidad **`dq_validaciones_silver`** y **`dq_validaciones_gold`** validan los datos y detienen el flujo si una regla crítica falla. Cada task tiene su `log_error` que, ante un fallo, registra la excepción en `hd_etl_log` y notifica a Slack. Una condición `es_modo_prueba` decide si la ejecución es de producción (usa y cierra la tabla de control) o de prueba (omite el control y el correo).
+Pipeline orquestado como un único Databricks Workflow, descrito como código con Asset Bundles y con las tasks en **abanico**: tras la ingesta, las cinco tablas Silver corren en paralelo, y lo mismo las cinco dimensiones Gold y los cuatro KPIs. Entre capas, las tasks de calidad **`dq_validaciones_silver`** y **`dq_validaciones_gold`** validan los datos y detienen el flujo si una regla crítica falla. Cada task tiene su `log_error` que, ante un fallo, registra la excepción en `hd_etl_log` y notifica a Slack. Una alerta avisa por correo si una ejecución supera los 35 minutos.
+
+**Cadena frente a abanico, medido** sobre el mismo código en Databricks Free Edition: la cadena lineal tardó **16 min 34 s** y el abanico **19 min**. El abanico no gana tiempo porque el cómputo serverless es compartido y limita las tareas concurrentes; se versiona en abanico porque deja el grafo listo para un entorno con más capacidad (etapa D). El detalle quedará en un ADR.
 
 <p align="center">
   <img src="docs/workflow.png" alt="Tubería de datos DataCo: cada task de negocio con su task log_error, de la ingesta al envío del correo" width="100%">
 </p>
 
+*El diagrama muestra la versión en cadena; el Job versionado en `resources/` está en abanico.*
+
 **Recorrido de una ejecución**
 
 ```
-es_modo_prueba ──(false)──▶ prepare_pipeline_control
-      │                              │
-      │                              ▼
-      │                  ingest_sharepoint_bronze                 (SharePoint → Bronze, por corte)
-      │                              │
-      ▼                              ▼
- (true: modo prueba)         slv_customers → slv_products → slv_locations → slv_orders → slv_order_details
-                                     │
-                                     ▼
-                           dq_validaciones_silver                 (compuerta de calidad, 21 reglas)
-                                     │
-                                     ▼
-              gld_customers → gld_fecha → gld_locations → gld_products → gld_shipping_mode
-                                     → gld_orders → gld_order_details
-                                     │
-                                     ▼
-                           gld_order_summary                      (base única de los KPIs)
-                                     │
-                                     ▼
-                           dq_validaciones_gold                   (compuerta de calidad, 3 reglas)
-                                     │
-                                     ▼
-       gld_kpi_executive_summary → gld_kpi_order_details → gld_kpi_alerts → gld_kpi_region_detail
-                                     │
-                                     ▼
-               gld_reporte_excel_correo     (Excel de 4 pestañas + correo vía Graph; solo en producción)
-                                     │
-                                     ▼
-               finalize_pipeline_control    (cierre de la ejecución; solo en producción)
+prepare_pipeline_control
+          │
+          ▼
+ingest_sharepoint_bronze              (SharePoint → Bronze, por corte)
+          │
+          ▼
+slv_customers · slv_products · slv_locations · slv_orders · slv_order_details     (en paralelo)
+          │
+          ▼
+dq_validaciones_silver                (compuerta de calidad, 21 reglas)
+          │
+          ▼
+gld_customers · gld_fecha · gld_locations · gld_products · gld_shipping_mode      (en paralelo)
+          │
+          ▼
+gld_orders ──▶ gld_order_details ──▶ gld_order_summary    (hechos y base única de los KPIs)
+          │
+          ▼
+dq_validaciones_gold                  (compuerta de calidad, 3 reglas)
+          │
+          ▼
+gld_kpi_executive_summary · gld_kpi_order_details · gld_kpi_alerts · gld_kpi_region_detail   (en paralelo)
+          │
+          ▼
+gld_reporte_excel_correo              (Excel de 4 pestañas + correo vía Graph)
+          │
+          ▼
+finalize_pipeline_control             (cierre de la ejecución)
 ```
 
 ---
@@ -288,6 +291,7 @@ Cada etapa se publica por separado y tiene un criterio de terminado. Las etapas 
 - Cierre en el SCD2 de los pedidos que pasan a cancelados.
 - Backfill por rango de ventanas, notebook de reinicio y marca de ejecuciones interrumpidas en el log.
 - Registro del mensaje de error también en las corridas de prueba (parametrizar los `log_error_*`).
+- Reactivar el modo de prueba en el Job versionado (condición `es_modo_prueba`).
 - **Terminado cuando:** se puede recargar cualquier rango de cortes sin tocar tablas a mano y el resultado es el mismo.
 
 ### Etapa D — Nube y escala

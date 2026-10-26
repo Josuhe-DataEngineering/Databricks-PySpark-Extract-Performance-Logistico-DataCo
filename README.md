@@ -392,3 +392,4 @@ El dataset es público (*DataCo Smart Supply Chain*, Kaggle) y la infraestructur
 *Dataset público · infraestructura real · construido de punta a punta sobre Databricks Lakehouse.*
 
 </div>
+<!-- prueba de CD -->

@@ -6,6 +6,8 @@ Pruebas ejecutadas a mano contra el pipeline real, con su evidencia. Cada una re
 |---|---|---|---|
 | 1 | Cuarentena | ¿Los datos defectuosos quedan en cuarentena y no llegan a Gold? | Aprobada |
 | 2 | Idempotencia | ¿Repetir o traslapar cortes duplica datos o crea versiones falsas? | Aprobada (A, B y C) |
+| 3 | Motor de calidad | ¿Cada regla detecta su defecto y aplica su decisión (CUARENTENA, ADVERTIR, DETENER)? | Aprobada (3 escenarios) |
+| 4 | Corrida de producción | ¿Los datos reales cumplen las 24 reglas? | Aprobada (24 de 24 en CUMPLE) |
 
 ---
 
@@ -81,3 +83,77 @@ Se compararon las 44 métricas de datos contra el resultado del escenario B: **l
 **Conclusión.** Repetir un corte, traslapar días ya cargados y volver a ejecutar una ventana vieja no duplica datos ni crea versiones nuevas en pedidos existentes.
 
 **Nota.** Tras el escenario B, Bronze llega hasta el 31 de enero y deja de estar alineado a domingo. Se corrige con la recarga histórica final.
+
+---
+
+## Prueba 3: motor de calidad de datos
+
+**Objetivo.** Comprobar que `dq_validaciones` detecta defectos inyectados a propósito y que toma la decisión configurada en cada regla: **CUARENTENA** (aísla las filas y el pipeline sigue), **ADVERTIR** (avisa y sigue) o **DETENER** (corta el pipeline y alerta).
+
+**Catálogo.** 24 reglas (DQ-001 a DQ-024): 21 se evalúan sobre Silver y 3 sobre Gold.
+
+| Decisión | Reglas |
+|---|---|
+| DETENER (7) | DQ-001, DQ-002, DQ-003, DQ-004, DQ-014, DQ-015, DQ-016 |
+| CUARENTENA (9) | DQ-005, DQ-006, DQ-008, DQ-009, DQ-011, DQ-012, DQ-013, DQ-023, DQ-024 |
+| ADVERTIR (8) | DQ-007, DQ-010, DQ-017, DQ-018, DQ-019, DQ-020, DQ-021, DQ-022 |
+
+**Cómo se hizo.** No se creó un Job aparte: se usó el **mismo Workflow** con el parámetro `modo_prueba`. Con `modo_prueba = true`, la condición `es_modo_prueba` omite `prepare_pipeline_control`, `gld_reporte_excel_correo` y `finalize_pipeline_control`, y `ancla_pipeline` mantiene activa la cadena Silver. Así se prueba el pipeline real, sin duplicarlo.
+
+Parámetros de cada corrida de prueba (la pantalla de ejecución debe mostrar "(override)" en todos):
+
+| Parámetro | Valor |
+|---|---|
+| `modo_prueba` | `true` |
+| `id_ejecucion_manual` | un identificador único por escenario |
+| `bronze_schema` | `pruebas_calidad` |
+| `bronze_table` | `raw_supply_chain_defectuosa` |
+| `silver_schema`, `gold_schema`, `metadata_schema` | `pruebas_calidad` |
+
+Procedimiento:
+
+1. `05_pruebas_calidad/01_crear_esquemas_prueba` crea el esquema `pruebas_calidad` en los cuatro catálogos y copia solo la estructura de las tablas de control.
+2. `02_generar_bronze_defectuoso` crea 10,500 filas defectuosas a partir de filas reales. Las cantidades esperadas se **calculan desde los datos**, no se escriben a mano, y quedan en `casos_esperados` y `casos_esperados_dq`.
+3. **Antes de cada escenario** se borran las tablas Silver y Gold del esquema `pruebas_calidad`, porque la dimensión Gold con SCD2 conserva versiones entre corridas.
+4. Se lanza el Job con los parámetros de arriba y se compara lo detectado en `hd_dq_resultados` contra lo esperado.
+
+### Escenario A: CUARENTENA (`PRUEBA-CABLEADO-3`)
+
+| Regla | Filas detectadas o aisladas |
+|---|---|
+| DQ-024 (pedido sin ubicación válida) | 1,000 |
+| DQ-011 | 733 |
+| DQ-012 | 1 |
+| DQ-013 | 452 |
+| DQ-005 y DQ-006 | 1,200 |
+| DQ-008 | 1,067 |
+| DQ-009 | 1,000 |
+
+Los 9 motivos de cuarentena de `casos_esperados` coinciden con lo registrado. DQ-014 y DQ-015 (Gold) dieron CUMPLE: confirman que las filas en cuarentena no llegaron a Gold. DQ-005, 006, 008 y 009 solo miden, porque Silver ya aisló esas filas al cargar.
+
+### Escenario B: ADVERTIR (`PRUEBA-ADVERTIR-1`)
+
+DQ-007 y DQ-010 quedaron en **ADVERTENCIA** con 100 filas detectadas frente a 100 esperadas. El pipeline continuó.
+
+### Escenario C: DETENER (`PRUEBA-DETENER-1`)
+
+Se sembró un duplicado del `customer_id` 20758 en `md_clientes`.
+
+- DQ-003 quedó **DETENIDO**: 1 fila detectada frente a 1 esperada.
+- Silver terminó, pero las tasks de Gold no corrieron porque dependen de `dq_validaciones_silver`.
+- Llegó la alerta a Slack con el `log_id`.
+
+**Alcance y limitaciones.**
+
+- De las reglas DETENER solo se forzó la falla de DQ-003. Las de Gold (DQ-014, 015 y 016) no se forzaron.
+- DQ-022 no tiene escenario de prueba propio.
+- Los `log_error_*` escriben en la tabla de log de producción, así que en modo prueba la fila de la task fallida queda en `EN_PROCESO` sin mensaje de error.
+- El reintento automático de las tasks de calidad en serverless puede duplicar la fila de log de esa task.
+
+---
+
+## Prueba 4: corrida normal de producción
+
+**Objetivo.** Comprobar que, con los datos reales y sin parámetros de prueba, las 24 reglas se cumplen.
+
+**Resultado.** La ejecución terminó en verde: las **24 reglas en CUMPLE**, con 0 filas incumpliendo. Es el caso inverso de la Prueba 3: allí las reglas detectan defectos inyectados; aquí confirman que los datos reales no los tienen.

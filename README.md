@@ -40,10 +40,10 @@ Tomé un reporte logístico que se armaba a mano cada semana cruzando exports en
 |---|---|---|
 | **1. Pipeline de datos** | Bronze → Silver → Gold: ingesta cruda en STRING con metadatos, hash del archivo e idempotencia por corte; tipado, deduplicación determinista y cuarentena en las 5 tablas Silver; modelo estrella con SCD2, 7 indicadores y Excel ejecutivo enviado por correo | ✅ Completa |
 | **2. Calidad de datos** | 24 reglas declarativas, decisión por regla, dos compuertas, pruebas con datos defectuosos de los tres comportamientos | ✅ **Completa** |
-| **3. Ingeniería de software y CI** | Módulo compartido, 13 pruebas con `pytest` ejecutadas en GitHub Actions y el Job completo descrito como código con Databricks Asset Bundles | ✅ **Completa** |
+| **3. Ingeniería de software, CI y CD** | Módulo compartido, 13 pruebas con `pytest` ejecutadas en GitHub Actions, el Job completo descrito como código con Databricks Asset Bundles y despliegue automático a `dev` al fusionar a `main` | ✅ **Completa** |
 | **4. Gobierno** | Clasificación, tags, máscara de PII, row filter, GRANT por rol, diccionario de datos, linaje | 🚧 En construcción |
 | **5. Reprocesabilidad** | SCD2 con fecha de negocio, snapshots regenerables, backfill y reinicio | 🚧 En construcción |
-| **6. Nube y escala** | Despliegue automático (CD), entorno de producción en Azure Databricks con ADLS Gen2, Auto Loader, prueba de escala medida | 🚧 En construcción |
+| **6. Nube y escala** | Despliegue automático a `prod`, entorno de producción en Azure Databricks con ADLS Gen2, Auto Loader, prueba de escala medida | 🚧 En construcción |
 | **7. Nivel plataforma** | Contratos de datos, evolución de esquema, SLOs, runbooks, incidentes simulados con postmortem | 🚧 En construcción |
 | **8. Machine Learning** | Modelo de riesgo de retraso con MLflow en Unity Catalog | 🚧 En construcción |
 
@@ -71,7 +71,7 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 | **Pruebas de calidad** | Los tres comportamientos (cuarentena, advertir, detener) verificados con el Workflow real sobre un esquema aislado, con cantidades esperadas calculadas a partir de los datos |
 | **Gobierno** | 🚧 *En construcción:* clasificación en 4 niveles, tags, máscara de PII, row filter y GRANT por rol en Unity Catalog |
 | **Observabilidad** | Tabla `etl_log`, alerta a Slack ante cualquier fallo, vistas de salud y dashboard AI/BI |
-| **Infraestructura y CI** | Job descrito como código con **Databricks Asset Bundles** (con alerta si la ejecución supera los 35 minutos) y **13 pruebas con `pytest`** que corren en **GitHub Actions** en cada cambio. 🚧 *En construcción:* despliegue automático, entorno `prod` y, opcionalmente, Terraform |
+| **Infraestructura, CI y CD** | Job descrito como código con **Databricks Asset Bundles** (con alerta si la ejecución supera los 35 minutos), **13 pruebas con `pytest`** que corren en **GitHub Actions** en cada cambio, y **despliegue automático** a `dev`: el pull request valida el bundle y el merge a `main` lo despliega. 🚧 *En construcción:* entorno `prod` y, opcionalmente, Terraform |
 | **Entrega** | Excel de 4 pestañas enviado por correo (Microsoft Graph) |
 | **ML** | 🚧 *En construcción:* modelo de riesgo de retraso con MLflow, registrado en Unity Catalog |
 
@@ -213,12 +213,13 @@ Antes de cada escenario se reinician las tablas Silver y Gold de prueba, porque 
 
 ---
 
-## 🧪 Ingeniería de software y CI
+## 🧪 Ingeniería de software, CI y CD
 
 - **Funciones compartidas:** `clean_str`, `clean_num`, `tipo_invalido` y `dedup_reciente` viven en un solo módulo, `modulos_compartidos/transformaciones_silver.py`, que importan los cinco notebooks Silver. Antes se copiaban en cada notebook.
 - **13 pruebas con datos de ejemplo:** filas creadas en memoria, sin tocar las tablas reales. Comprueban, por ejemplo, que un valor vacío o no convertible da `NULL` y nunca `0`, y que de una llave repetida se conserva la fila del corte más reciente. Un error en el módulo afectaría a las cinco tablas Silver; por eso están probadas.
 - **CI con GitHub Actions:** en cada push a `main` y en cada pull request se levanta una máquina limpia con Java, Spark y `pytest`, y se ejecutan las pruebas.
 - **Job como código:** el Job se exportó del Workflow que ya funcionaba y se describe en YAML (46 tasks, dependencias, parámetros, notificaciones y alerta de duración). Se desplegó con Asset Bundles y se ejecutó de punta a punta desde el repositorio.
+- **CD con GitHub Actions:** en un pull request se valida el bundle (`databricks bundle validate`) sin tocar Databricks; al fusionar a `main` se despliega el Job `[dev jsosa]` (`databricks bundle deploy`). El despliegue **no ejecuta** el Job: correrlo, con su correo real y sus escrituras de datos, es una decisión aparte ([ADR-004](docs/adr/004-cd-solo-despliega.md)). La URL del workspace, el token y el correo de alertas viven solo en GitHub Secrets; ningún archivo del repositorio los contiene. El token es personal, de 90 días, porque Free Edition no permite service principals.
 
 ---
 
@@ -226,13 +227,13 @@ Antes de cada escenario se reinician las tablas Silver y Gold de prueba, porque 
 
 Pipeline orquestado como un único Databricks Workflow, descrito como código con Asset Bundles y con las tasks en **abanico**: tras la ingesta, las cinco tablas Silver corren en paralelo, y lo mismo las cinco dimensiones Gold y los cuatro KPIs. Entre capas, las tasks de calidad **`dq_validaciones_silver`** y **`dq_validaciones_gold`** validan los datos y detienen el flujo si una regla crítica falla. Cada task tiene su `log_error` que, ante un fallo, registra la excepción en `hd_etl_log` y notifica a Slack. Una alerta avisa por correo si una ejecución supera los 35 minutos.
 
-**Cadena frente a abanico, medido** sobre el mismo código en Databricks Free Edition: la cadena lineal tardó **16 min 34 s** y el abanico **19 min**. El abanico no gana tiempo porque el cómputo serverless es compartido y limita las tareas concurrentes; se versiona en abanico porque deja el grafo listo para un entorno con más capacidad (etapa D). El detalle quedará en un ADR.
+**Cadena frente a abanico, medido** sobre el mismo código en Databricks Free Edition: la cadena lineal tardó **16 min 34 s** y el abanico **19 min**. El abanico no gana tiempo porque el cómputo serverless es compartido y limita las tareas concurrentes; se versiona en abanico porque deja el grafo listo para un entorno con más capacidad (etapa D). El detalle está en el [ADR-001](docs/adr/001-abanico-vs-cadena.md).
 
 <p align="center">
   <img src="docs/workflow.png" alt="Tubería de datos DataCo: cada task de negocio con su task log_error, de la ingesta al envío del correo" width="100%">
 </p>
 
-*El diagrama muestra la versión en cadena; el Job versionado en `resources/` está en abanico.*
+*Diseño objetivo en abanico. Las tasks en verde (Machine Learning) están en construcción 🚧 y no forman parte del Job versionado en `resources/`. Los conteos de reglas del diagrama (19 en Silver y 22 en total) corresponden a una versión anterior del catálogo; el vigente tiene 21 y 24.*
 
 **Recorrido de una ejecución**
 
@@ -273,12 +274,14 @@ finalize_pipeline_control             (cierre de la ejecución)
 
 Cada etapa se publica por separado y tiene un criterio de terminado. Las etapas marcadas con ✅ ya están hechas; el resto es 🚧 *en construcción*.
 
-### Etapa A — Ingeniería de software y CI ✅ Completa
+### Etapa A — Ingeniería de software, CI y CD ✅ Completa
 - **Módulo compartido** (`clean_str`, `clean_num`, `tipo_invalido`, `dedup_reciente`) en `modulos_compartidos/`, importado por los cinco notebooks Silver en lugar de repetirse en cada uno.
 - **13 pruebas unitarias con `pytest`** sobre esas funciones, en `tests/`.
 - **GitHub Actions:** en cada push a `main` y en cada pull request se instalan Spark y Java y se ejecutan las pruebas.
 - **Databricks Asset Bundles:** el Job, sus tasks, dependencias, parámetros y notificaciones descritos en YAML, con alerta si la ejecución supera los 35 minutos; validado desplegándolo y ejecutándolo de punta a punta desde el repositorio.
-- *El despliegue automático al fusionar a `main` y el target `prod` pasan a la etapa D.*
+- **CD a `dev`:** un pull request valida el bundle y el merge a `main` despliega el Job `[dev jsosa]`; probado con ambos caminos. Las credenciales están en GitHub Secrets.
+- **Decisiones documentadas:** cuatro ADRs en `docs/adr/`.
+- *El target `prod` y el despliegue automático hacia él pasan a la etapa D.*
 
 ### Etapa B — Gobierno y metadatos
 - Clasificación, tags, máscara y row filter, GRANT por rol, diccionario de datos y captura del linaje de Unity Catalog.
@@ -295,7 +298,7 @@ Cada etapa se publica por separado y tiene un criterio de terminado. Las etapas 
 - **Terminado cuando:** se puede recargar cualquier rango de cortes sin tocar tablas a mano y el resultado es el mismo.
 
 ### Etapa D — Nube y escala
-- **Despliegue automático (CD):** al fusionar a `main`, GitHub Actions valida el bundle y lo despliega a `dev`; después, a `prod`.
+- **Despliegue automático a `prod`:** el CD a `dev` ya existe (etapa A); aquí se extiende a `prod`, con aprobación antes de desplegar.
 - **Dos entornos con el mismo código:** Databricks Free Edition como `dev` y **Azure Databricks** como `prod`, con almacenamiento externo en **ADLS Gen2**, Unity Catalog con ubicación externa y presupuesto con alerta de costo.
 - **Ingesta incremental con Auto Loader** sobre archivos que llegan al almacenamiento, en lugar de leer el archivo completo por ventana.
 - **Prueba de escala:** datos sintéticos de decenas o cientos de millones de filas, en un esquema aparte y declarados como sintéticos, con tiempos y costos antes y después de `OPTIMIZE` y liquid clustering.
@@ -327,8 +330,8 @@ Modelo de riesgo de retraso con variables sin fuga de datos, MLflow, modelo vers
 | Alertas | Webhook de Slack |
 | Reportería | openpyxl · matplotlib · Dashboards AI/BI |
 | Pruebas | pytest |
-| IaC y CI | Databricks Asset Bundles · Databricks CLI · GitHub Actions |
-| CD y Terraform 🚧 | Despliegue automático · Terraform (opcional) |
+| IaC, CI y CD | Databricks Asset Bundles · Databricks CLI · GitHub Actions |
+| Terraform 🚧 | Opcional |
 | Nube 🚧 | Azure Databricks · ADLS Gen2 · Auto Loader |
 | Machine Learning 🚧 | MLflow · Unity Catalog Models |
 
@@ -348,30 +351,39 @@ Modelo de riesgo de retraso con variables sin fuga de datos, MLflow, modelo vers
 05_pruebas_calidad/           # datos sintéticos defectuosos y verificación de cada comportamiento (cuarentena, advertir, detener)
 06_calidad_datos/             # motor de validaciones (24 reglas) + logs
 requerimientos/               # especificación no técnica del proyecto
-docs/                         # diagrama del workflow, dashboard de salud y pruebas manuales (🚧 ADRs: decisiones de arquitectura)
+docs/                         # diagrama del workflow, dashboard de salud, pruebas manuales y ADRs (docs/adr/)
 05_ml/                        # 🚧 variables, entrenamiento, registro y predicciones
 databricks.yml y resources/   # Asset Bundle: Job completo y alerta de duración
 modulos_compartidos/          # funciones comunes de Silver, importadas por los cinco notebooks
 tests/                        # 13 pruebas con pytest
-.github/workflows/            # CI: pruebas en cada push y pull request (🚧 despliegue automático)
+.github/workflows/            # CI: pruebas en cada push y pull request · CD: valida en el PR y despliega a dev al fusionar a main
 ```
 
 Cada carpeta separa el notebook de negocio (`01_negocio/`) de su notebook de manejo de errores (`02_logs/`). 🚧 *En construcción:* cada notebook declarará en su cabecera la capa, sus entradas y salidas, su owner y las reglas de calidad asociadas.
 
 ---
 
-## 📚 Decisiones de arquitectura (ADRs) &nbsp; 🚧 *En construcción*
+## 📚 Decisiones de arquitectura (ADRs)
 
-Cada decisión relevante estará documentada en `docs/adr/` con su contexto, la alternativa descartada y su consecuencia:
+Cada decisión relevante se documenta en [`docs/adr/`](docs/adr/) con su contexto, las alternativas, lo que se decidió y sus consecuencias.
+
+**Publicadas**
+
+| ADR | Decisión |
+|---|---|
+| [001](docs/adr/001-abanico-vs-cadena.md) | Orquestar el Job en abanico en vez de en cadena, con los tiempos medidos |
+| [002](docs/adr/002-cuarentena-en-silver.md) | Cuarentena en la misma tabla de Silver, sin descartar filas |
+| [003](docs/adr/003-modulo-compartido-silver.md) | Módulo compartido para los helpers de Silver, con pruebas automáticas |
+| [004](docs/adr/004-cd-solo-despliega.md) | El CD despliega la definición del Job pero no lo ejecuta |
+
+🚧 **Por documentar**
 
 - Bronze en STRING y sin inferencia de tipos, y su retención.
-- Cuarentena en lugar de eliminación de filas.
 - Conversión segura de tipos: `NULL` y cuarentena en vez de cero por defecto.
 - Prefijos de tabla (`md_`, `hd_`, `desc_`) y excepciones documentadas.
 - Llaves sustitutas por hash estable en dimensiones.
 - Parámetros de calidad: umbrales y decisión por regla.
 - Un solo Job con modo de prueba por parámetro, en lugar de un Job de pruebas aparte.
-- Workflow en cadena frente a en abanico, con los tiempos medidos.
 - Serverless: sin autoscale ni auto-terminación, y por qué no hay particionado ni Z-ORDER a esta escala.
 - Por qué un Lakehouse para un volumen moderado: gobierno, trazabilidad y reproducibilidad, no escala.
 - Datos sintéticos de volumen solo para escala, nunca para ML.
@@ -392,4 +404,3 @@ El dataset es público (*DataCo Smart Supply Chain*, Kaggle) y la infraestructur
 *Dataset público · infraestructura real · construido de punta a punta sobre Databricks Lakehouse.*
 
 </div>
-<!-- prueba de CD -->

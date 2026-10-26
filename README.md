@@ -90,7 +90,7 @@ Dos tasks de validación (tras Silver y tras Gold) ejecutan el catálogo de regl
 
 ### 🥇 Gold — modelo dimensional y KPIs
 Esquema estrella listo para análisis, con **grano declarado** en cada tabla:
-- **5 dimensiones** (clientes y productos con historial SCD2; ubicaciones, fecha y modo de envío) con llaves sustitutas estables por hash.
+- **5 dimensiones** (clientes y productos con historial SCD2; ubicaciones, fecha y modo de envío) con llaves sustitutas: hash estable en ubicaciones y modos de envío, y secuenciales en las tablas con historial SCD2 ([ADR-008](docs/adr/008-llaves-sustitutas.md)).
 - **2 tablas de hechos** (pedidos con SCD2 y reglas de negocio; detalle de pedido).
 - **Resumen por pedido** como base única de los indicadores.
 - **4 vistas de KPIs:** Resumen Ejecutivo, Detalle por Región, Detalle por Orden (SCD2) y Alertas, con historial por corte.
@@ -280,7 +280,7 @@ Cada etapa se publica por separado y tiene un criterio de terminado. Las etapas 
 - **GitHub Actions:** en cada push a `main` y en cada pull request se instalan Spark y Java y se ejecutan las pruebas.
 - **Databricks Asset Bundles:** el Job, sus tasks, dependencias, parámetros y notificaciones descritos en YAML, con alerta si la ejecución supera los 35 minutos; validado desplegándolo y ejecutándolo de punta a punta desde el repositorio.
 - **CD a `dev`:** un pull request valida el bundle y el merge a `main` despliega el Job `[dev jsosa]`; probado con ambos caminos. Las credenciales están en GitHub Secrets.
-- **Decisiones documentadas:** cuatro ADRs en `docs/adr/`.
+- **Decisiones documentadas:** trece ADRs en `docs/adr/`.
 - *El target `prod` y el despliegue automático hacia él pasan a la etapa D.*
 
 ### Etapa B — Gobierno y metadatos
@@ -365,9 +365,7 @@ Cada carpeta separa el notebook de negocio (`01_negocio/`) de su notebook de man
 
 ## 📚 Decisiones de arquitectura (ADRs)
 
-Cada decisión relevante se documenta en [`docs/adr/`](docs/adr/) con su contexto, las alternativas, lo que se decidió y sus consecuencias.
-
-**Publicadas**
+Cada decisión relevante se documenta en [`docs/adr/`](docs/adr/) con su contexto, las alternativas, lo que se decidió y sus consecuencias. Las que tienen una limitación conocida la declaran en su propio texto.
 
 | ADR | Decisión |
 |---|---|
@@ -375,18 +373,15 @@ Cada decisión relevante se documenta en [`docs/adr/`](docs/adr/) con su context
 | [002](docs/adr/002-cuarentena-en-silver.md) | Cuarentena en la misma tabla de Silver, sin descartar filas |
 | [003](docs/adr/003-modulo-compartido-silver.md) | Módulo compartido para los helpers de Silver, con pruebas automáticas |
 | [004](docs/adr/004-cd-solo-despliega.md) | El CD despliega la definición del Job pero no lo ejecuta |
-
-🚧 **Por documentar**
-
-- Bronze en STRING y sin inferencia de tipos, y su retención.
-- Conversión segura de tipos: `NULL` y cuarentena en vez de cero por defecto.
-- Prefijos de tabla (`md_`, `hd_`, `desc_`) y excepciones documentadas.
-- Llaves sustitutas por hash estable en dimensiones.
-- Parámetros de calidad: umbrales y decisión por regla.
-- Un solo Job con modo de prueba por parámetro, en lugar de un Job de pruebas aparte.
-- Serverless: sin autoscale ni auto-terminación, y por qué no hay particionado ni Z-ORDER a esta escala.
-- Por qué un Lakehouse para un volumen moderado: gobierno, trazabilidad y reproducibilidad, no escala.
-- Datos sintéticos de volumen solo para escala, nunca para ML.
+| [005](docs/adr/005-bronze-en-string.md) | Bronze con todas las columnas de negocio en STRING, y su retención |
+| [006](docs/adr/006-conversion-segura-de-tipos.md) | Conversión segura de tipos: `NULL` y cuarentena en vez de cero |
+| [007](docs/adr/007-prefijos-de-tablas.md) | Convención de prefijos en los nombres de tabla y sus excepciones |
+| [008](docs/adr/008-llaves-sustitutas.md) | Llaves sustitutas: hash donde la tabla se reconstruye, secuenciales en las tablas SCD2 (con limitación conocida) |
+| [009](docs/adr/009-parametros-de-calidad.md) | Umbrales y decisión por regla en el motor de calidad |
+| [010](docs/adr/010-modo-de-prueba-por-parametro.md) | Un solo Job con modo de prueba por parámetro (reactivación en etapa C) |
+| [011](docs/adr/011-serverless-sin-particionado.md) | Cómputo serverless, sin particionado ni Z-ORDER a esta escala |
+| [012](docs/adr/012-lakehouse-para-volumen-moderado.md) | Usar un Lakehouse para un volumen moderado: gobierno, trazabilidad y reproducibilidad |
+| [013](docs/adr/013-datos-sinteticos.md) | Datos sintéticos solo para pruebas y escala, nunca para Machine Learning |
 
 ---
 

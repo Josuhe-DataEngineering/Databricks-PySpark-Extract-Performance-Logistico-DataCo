@@ -19,3 +19,12 @@ reconstruir el razonamiento a partir del código.
 | [011](011-serverless-sin-particionado.md) | Cómputo serverless, sin particionado ni Z-ORDER a esta escala | Aceptada |
 | [012](012-lakehouse-para-volumen-moderado.md) | Usar un Lakehouse para un volumen moderado | Aceptada |
 | [013](013-datos-sinteticos.md) | Datos sintéticos solo para pruebas y escala, nunca para ML | Aceptada |
+| [014](014-gobierno-en-gold.md) | Gobierno de datos con Unity Catalog y sus límites en Free Edition | Aceptada |
+
+## Cómo agregar un ADR nuevo
+
+1. Crear `NNN-titulo-corto.md` con el siguiente número.
+2. Incluir: estado, fecha, contexto, alternativas, decisión, motivos y consecuencias.
+3. Añadir una fila a la tabla de este índice.
+4. Si una decisión cambia, no se borra el ADR anterior: se marca como
+   *Reemplazada por ADR-NNN* y se escribe uno nuevo.

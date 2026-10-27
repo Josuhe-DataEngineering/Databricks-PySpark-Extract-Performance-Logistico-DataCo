@@ -51,7 +51,7 @@
 </td>
 <td valign="top">
 <ul>
-<li><b>Una corrida reproducible</b> de ~19 min</li>
+<li><b>Una corrida reproducible</b> </li>
 <li>Reglas de negocio <b>centralizadas y versionadas</b></li>
 <li>Calidad <b>validada antes de publicar</b> (24 reglas)</li>
 <li><b>Historial de cambios</b> (SCD2) y linaje en el catálogo</li>

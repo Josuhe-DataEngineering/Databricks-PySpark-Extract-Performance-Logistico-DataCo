@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/banner.png" alt="DataCo Supply Chain Data Lakehouse" width="100%">
+</p>
+
 <div align="center">
 
 # 🏗️ DataCo Supply Chain — Data Lakehouse
@@ -217,4 +221,4 @@ Proyecto que **migra un proceso tradicional** (SQL Server Integration Services s
 
 <sub>Dataset público · infraestructura real · construido de punta a punta sobre Databricks Lakehouse.</sub>
 
-</div> 
+</div>

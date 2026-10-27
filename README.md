@@ -16,7 +16,6 @@
 
 <br>
 
-![Pipeline](https://img.shields.io/badge/Pipeline_end--to--end-19_min-3E6D9C?style=flat-square&labelColor=24384C)
 ![Calidad](https://img.shields.io/badge/Reglas_de_calidad-24-3E6D9C?style=flat-square&labelColor=24384C)
 ![Pruebas](https://img.shields.io/badge/Pruebas_pytest-13-3E6D9C?style=flat-square&labelColor=24384C)
 ![Columnas](https://img.shields.io/badge/Columnas_documentadas-536-3E6D9C?style=flat-square&labelColor=24384C)

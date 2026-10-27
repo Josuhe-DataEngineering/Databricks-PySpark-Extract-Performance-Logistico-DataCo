@@ -41,7 +41,7 @@ Tomé un reporte logístico que se armaba a mano cada semana cruzando exports en
 | **1. Pipeline de datos** | Bronze → Silver → Gold: ingesta cruda en STRING con metadatos, hash del archivo e idempotencia por corte; tipado, deduplicación determinista y cuarentena en las 5 tablas Silver; modelo estrella con SCD2, 7 indicadores y Excel ejecutivo enviado por correo | ✅ Completa |
 | **2. Calidad de datos** | 24 reglas declarativas, decisión por regla, dos compuertas, pruebas con datos defectuosos de los tres comportamientos | ✅ **Completa** |
 | **3. Ingeniería de software, CI y CD** | Módulo compartido, 13 pruebas con `pytest` ejecutadas en GitHub Actions, el Job completo descrito como código con Databricks Asset Bundles y despliegue automático a `dev` al fusionar a `main` | ✅ **Completa** |
-| **4. Gobierno** | Clasificación, tags, máscara de PII, row filter, GRANT por rol, diccionario de datos, linaje | 🚧 En construcción |
+| **4. Gobierno** | Comentarios por tabla y por columna, tags, llaves informativas, máscara de PII y GRANT por rol, diccionario de datos consultable, tags y permisos por capa | ✅ **Completa** |
 | **5. Reprocesabilidad** | SCD2 con fecha de negocio, snapshots regenerables, backfill y reinicio | 🚧 En construcción |
 | **6. Nube y escala** | Despliegue automático a `prod`, entorno de producción en Azure Databricks con ADLS Gen2, Auto Loader, prueba de escala medida | 🚧 En construcción |
 | **7. Nivel plataforma** | Contratos de datos, evolución de esquema, SLOs, runbooks, incidentes simulados con postmortem | 🚧 En construcción |
@@ -69,7 +69,7 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 | **Modelo** | Esquema estrella con **SCD2** en dimensiones y hechos clave |
 | **Calidad** | **24 reglas** (21 en Silver y 3 en Gold) en seis dimensiones; el dato defectuoso va a cuarentena con alerta y solo los errores propios del pipeline lo detienen |
 | **Pruebas de calidad** | Los tres comportamientos (cuarentena, advertir, detener) verificados con el Workflow real sobre un esquema aislado, con cantidades esperadas calculadas a partir de los datos |
-| **Gobierno** | 🚧 *En construcción:* clasificación en 4 niveles, tags, máscara de PII, row filter y GRANT por rol en Unity Catalog |
+| **Gobierno** | En Gold: comentario con grano y owner, tags de clasificación, llaves primarias y foráneas informativas, máscara del correo del cliente y permisos por rol en Unity Catalog. Además, comentario en cada columna de Silver y Gold, un diccionario de datos consultable y permisos por capa |
 | **Observabilidad** | Tabla `etl_log`, alerta a Slack ante cualquier fallo, vistas de salud y dashboard AI/BI |
 | **Infraestructura, CI y CD** | Job descrito como código con **Databricks Asset Bundles** (con alerta si la ejecución supera los 35 minutos), **13 pruebas con `pytest`** que corren en **GitHub Actions** en cada cambio, y **despliegue automático** a `dev`: el pull request valida el bundle y el merge a `main` lo despliega. 🚧 *En construcción:* entorno `prod` y, opcionalmente, Terraform |
 | **Entrega** | Excel de 4 pestañas enviado por correo (Microsoft Graph) |
@@ -80,7 +80,7 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
 ## 🔧 Qué hace cada capa
 
 ### 🥉 Bronze — ingesta cruda
-Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas de negocio se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen; solo las columnas técnicas están tipadas. Cada fila lleva sus metadatos: fecha de carga, ejecución, origen, archivo, **hash SHA-256 del archivo**, filas del archivo y esquema original en JSON. Bronze conserva todos los registros, incluidos los duplicados: la deduplicación ocurre en Silver. El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. La tabla define una **retención de 365 días** del historial Delta y lleva COMMENT y tags de gobierno (capa, dominio, owner y frecuencia). 🚧 *En construcción:* acceso restringido a ingeniería.
+Descarga el archivo desde SharePoint y carga **solo el corte de fechas** definido en una tabla de control. Todas las columnas de negocio se almacenan como **STRING**, sin inferir tipos ni aplicar reglas de negocio, para no perder información del origen; solo las columnas técnicas están tipadas. Cada fila lleva sus metadatos: fecha de carga, ejecución, origen, archivo, **hash SHA-256 del archivo**, filas del archivo y esquema original en JSON. Bronze conserva todos los registros, incluidos los duplicados: la deduplicación ocurre en Silver. El proceso es idempotente: si los cortes se traslapan, los días de la ventana se reemplazan y no se duplican. La tabla define una **retención de 365 días** del historial Delta y lleva COMMENT y tags de gobierno (capa, dominio, owner y frecuencia). Sin permisos para grupos de lectura: solo ingeniería accede.
 
 ### 🥈 Silver — datos limpios y conformados
 Tipado fuerte con conversión segura (un texto no convertible queda en `NULL` y la fila se aísla; nunca se reemplaza por cero), normalización y deduplicación **determinista** por llave de negocio, priorizando el corte más reciente. Separa el origen en entidades: clientes, productos, ubicaciones, pedidos y detalle de pedido. Las filas que no cumplen una regla **no se eliminan**: pasan a **cuarentena** con su motivo, en las cinco tablas, y Gold lee solo las filas válidas. Cada ejecución deja registro de la deduplicación y de la cuarentena. Cada fila conserva su trazabilidad hacia Bronze.
@@ -94,7 +94,7 @@ Esquema estrella listo para análisis, con **grano declarado** en cada tabla:
 - **2 tablas de hechos** (pedidos con SCD2 y reglas de negocio; detalle de pedido).
 - **Resumen por pedido** como base única de los indicadores.
 - **4 vistas de KPIs:** Resumen Ejecutivo, Detalle por Región, Detalle por Orden (SCD2) y Alertas, con historial por corte.
-- 🚧 *En construcción:* cada tabla documentará en su COMMENT el grano, el owner y la versión del KPI.
+- Cada tabla lleva en su COMMENT el grano y el owner. 🚧 *En construcción:* la versión del KPI y el comentario por columna.
 
 ### 📊 Entrega a negocio
 Un notebook genera el **Excel de 4 pestañas** con formato condicional tipo semáforo y variación contra el corte anterior, y lo **envía por correo** con una tabla resumen y un gráfico en el cuerpo del mensaje.
@@ -125,7 +125,7 @@ Con agrupaciones de negocio **GLOBAL** (todos los mercados) y **AMERICAS** (LATA
         dim_locations  dim_shipping_mode
 ```
 
-Las dimensiones de clientes y productos y la tabla de hechos de pedidos usan **SCD2** sobre una lista explícita de columnas de seguimiento: conservan el historial, de modo que cada pedido puede analizarse con los atributos vigentes en su momento. 🚧 *En construcción:* llaves primarias y foráneas informativas, restricciones `NOT NULL` y `CHECK`, y un `COMMENT` en cada tabla y columna.
+Las dimensiones de clientes y productos y la tabla de hechos de pedidos usan **SCD2** sobre una lista explícita de columnas de seguimiento: conservan el historial, de modo que cada pedido puede analizarse con los atributos vigentes en su momento. Las tablas de Gold declaran llaves primarias y foráneas informativas y la llave `NOT NULL`; no llevan `CHECK`, porque Databricks no lo permite junto a una máscara de columna ([ADR-014](docs/adr/014-gobierno-en-gold.md)). Cada columna lleva su descripción en el catálogo.
 
 ---
 
@@ -191,12 +191,20 @@ Antes de cada escenario se reinician las tablas Silver y Gold de prueba, porque 
 
 ---
 
-## 🔐 Gobierno de datos (Unity Catalog) &nbsp; 🚧 *En construcción*
+## 🔐 Gobierno de datos (Unity Catalog) &nbsp; ✅ *Completa*
 
-- **Clasificación en 4 niveles** (Público, Interno, Confidencial, Restringido) aplicada por atributo y convertida en **tags** de Unity Catalog, alineada con la Ley 29733 de protección de datos personales.
-- **Enmascaramiento dinámico** del correo del cliente y **filtro de filas** según el grupo del usuario (`dac_lectores`).
-- **GRANT por rol:** Bronze solo para ingeniería; Silver para analistas avanzados; Gold para consumo.
-- **Owner por rol** y steward en los tags de cada tabla, **diccionario de datos** como tabla consultable y **linaje** completo Bronze → Silver → Gold.
+Se aplica con un notebook idempotente (`00_metadata/04_gobierno/aplicar_gobierno`), que se ejecuta cuando cambia el modelo:
+
+- **Comentario y tags:** cada tabla de Bronze, Silver y Gold lleva su descripción y los tags `clasificacion` y `layer`.
+- **Comentario por columna:** 262 columnas de Silver y Gold con su significado de negocio, a partir de un diccionario único por nombre de columna.
+- **Diccionario de datos consultable:** `metadata_dataco.supply_chain.md_diccionario_datos`, generado desde `information_schema` (536 columnas de las tres capas, con tipo, descripción y marca de dato personal). Se regenera al ejecutar el notebook.
+- **Llaves informativas en Gold:** llaves primarias (verificadas como únicas y sin nulos antes de declararlas) y llaves foráneas entre hechos y dimensiones.
+- **Enmascaramiento dinámico** del correo del cliente en Gold (`desc_dim_customers`) y en Silver (`md_clientes`): la columna lleva el tag `DAC = YES` y los miembros de `dac_lectores` y `dac_analistas_avanzados` ven `***@***`.
+- **GRANT por rol:** `dac_lectores` consulta Gold; `dac_analistas_avanzados` consulta Silver; Bronze no tiene permisos para grupos de lectura, solo ingeniería.
+
+**Probado, no aplicado:** el **filtro de filas** funciona con el mismo grupo, pero falta definir el criterio de negocio que decide qué filas ve cada grupo.
+
+**Límites de Free Edition y de Databricks** (detalle en el [ADR-014](docs/adr/014-gobierno-en-gold.md)): una máscara no convive con restricciones `CHECK`, y las restricciones solo van en Gold porque las filas en cuarentena de Silver pueden traer llaves nulas o repetidas.
 
 ---
 
@@ -280,14 +288,13 @@ Cada etapa se publica por separado y tiene un criterio de terminado. Las etapas 
 - **GitHub Actions:** en cada push a `main` y en cada pull request se instalan Spark y Java y se ejecutan las pruebas.
 - **Databricks Asset Bundles:** el Job, sus tasks, dependencias, parámetros y notificaciones descritos en YAML, con alerta si la ejecución supera los 35 minutos; validado desplegándolo y ejecutándolo de punta a punta desde el repositorio.
 - **CD a `dev`:** un pull request valida el bundle y el merge a `main` despliega el Job `[dev jsosa]`; probado con ambos caminos. Las credenciales están en GitHub Secrets.
-- **Decisiones documentadas:** trece ADRs en `docs/adr/`.
+- **Decisiones documentadas:** catorce ADRs en `docs/adr/`.
 - *El target `prod` y el despliegue automático hacia él pasan a la etapa D.*
 
-### Etapa B — Gobierno y metadatos
-- Clasificación, tags, máscara y row filter, GRANT por rol, diccionario de datos y captura del linaje de Unity Catalog.
-- COMMENT con grano, owner y versión de KPI en cada tabla; llaves informativas y restricciones `NOT NULL` y `CHECK`.
-- Bloque de trazabilidad estándar en la cabecera de cada notebook.
-- **Terminado cuando:** cualquier tabla se explica sola desde el catálogo y la columna `customer_email` se ve enmascarada para el grupo lector.
+### Etapa B — Gobierno y metadatos ✅ Completa
+- ✅ **Hecho:** comentario por tabla y por columna, tags de clasificación, llaves primarias y foráneas informativas en Gold, máscara del correo en Gold y Silver, GRANT por rol y diccionario de datos consultable (ADR-014).
+- Pendiente menor: filtro de filas con un criterio de negocio definido, y bloque de trazabilidad estándar en la cabecera de cada notebook.
+- ✅ **Cumplido:** cualquier tabla se explica sola desde el catálogo y `customer_email` se ve enmascarado para los grupos lectores.
 
 ### Etapa C — Reprocesabilidad
 - SCD2 con fecha de negocio en lugar de la fecha del sistema; snapshots de KPIs regenerables para cortes pasados.
@@ -340,7 +347,7 @@ Modelo de riesgo de retraso con variables sin fuga de datos, MLflow, modelo vers
 ## 📁 Organización del repositorio
 
 ```
-00_metadata/                  # control del pipeline (prepare / finalize), logs y observabilidad (tablas de calidad, vistas de salud)
+00_metadata/                  # control del pipeline (prepare / finalize), logs, observabilidad (tablas de calidad, vistas de salud) y gobierno (comentarios, tags, llaves, máscara)
 01_ingest_sharepoint_bronze/  # ingesta a Bronze + logs
 02_silver_dimensiones/        # clientes, productos, ubicaciones + logs
 02_silver_hechos/             # pedidos, detalle de pedido + logs
@@ -382,6 +389,7 @@ Cada decisión relevante se documenta en [`docs/adr/`](docs/adr/) con su context
 | [011](docs/adr/011-serverless-sin-particionado.md) | Cómputo serverless, sin particionado ni Z-ORDER a esta escala |
 | [012](docs/adr/012-lakehouse-para-volumen-moderado.md) | Usar un Lakehouse para un volumen moderado: gobierno, trazabilidad y reproducibilidad |
 | [013](docs/adr/013-datos-sinteticos.md) | Datos sintéticos solo para pruebas y escala, nunca para Machine Learning |
+| [014](docs/adr/014-gobierno-en-gold.md) | Gobierno de datos con Unity Catalog y sus límites en Free Edition |
 
 ---
 

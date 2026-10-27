@@ -16,12 +16,12 @@
 
 <br>
 
-![Pipeline](https://img.shields.io/badge/Pipeline_end--to--end-19_min-FF3621?style=flat-square&labelColor=1a1a1a)
-![Calidad](https://img.shields.io/badge/Reglas_de_calidad-24-00ADD4?style=flat-square&labelColor=1a1a1a)
-![Pruebas](https://img.shields.io/badge/Pruebas_pytest-13-3FB950?style=flat-square&labelColor=1a1a1a)
-![Columnas](https://img.shields.io/badge/Columnas_documentadas-536-E3B341?style=flat-square&labelColor=1a1a1a)
-![Duplicados](https://img.shields.io/badge/Duplicados_·_cuarentena-0-3FB950?style=flat-square&labelColor=1a1a1a)
-![ADRs](https://img.shields.io/badge/Decisiones_de_arquitectura-14-8957E5?style=flat-square&labelColor=1a1a1a)
+![Pipeline](https://img.shields.io/badge/Pipeline_end--to--end-19_min-3E6D9C?style=flat-square&labelColor=24384C)
+![Calidad](https://img.shields.io/badge/Reglas_de_calidad-24-3E6D9C?style=flat-square&labelColor=24384C)
+![Pruebas](https://img.shields.io/badge/Pruebas_pytest-13-3E6D9C?style=flat-square&labelColor=24384C)
+![Columnas](https://img.shields.io/badge/Columnas_documentadas-536-3E6D9C?style=flat-square&labelColor=24384C)
+![Duplicados](https://img.shields.io/badge/Duplicados_·_cuarentena-0-3E6D9C?style=flat-square&labelColor=24384C)
+![ADRs](https://img.shields.io/badge/Decisiones_de_arquitectura-14-3E6D9C?style=flat-square&labelColor=24384C)
 
 </div>
 
@@ -218,4 +218,4 @@ Proyecto que **migra un proceso tradicional** (SQL Server Integration Services s
 
 <sub>Dataset público · infraestructura real · construido de punta a punta sobre Databricks Lakehouse.</sub>
 
-</div>
+</div> 

@@ -26,7 +26,7 @@ Tomé un reporte logístico que se armaba a mano cada semana (2-3 h de un analis
 | **2. Calidad de datos** | 24 reglas declarativas, cuarentena, pruebas con datos defectuosos | ✅ Completa |
 | **3. CI y CD** | Módulo compartido, 13 pruebas `pytest` en GitHub Actions, Asset Bundles, deploy a `dev` | ✅ Completa |
 | **4. Gobierno** | Comentarios, tags, máscara PII, GRANT por rol, diccionario de datos | ✅ Completa |
-| **5. Reprocesabilidad** | SCD2 con fecha de negocio, backfill por ventana, snapshots regenerables | ✅ Completa |
+| **5. Reprocesabilidad** | SCD2 con fecha de negocio, backfill, reinicio | 🚧 En construcción |
 | **6. Nube y escala** | Azure Databricks, ADLS Gen2, Auto Loader, prueba de escala | 🚧 En construcción |
 | **7. Nivel plataforma** | Contratos de datos, SLOs, runbooks, incidentes simulados | 🚧 En construcción |
 | **8. Machine Learning** | Modelo de riesgo de retraso con MLflow en Unity Catalog | 🚧 En construcción |
@@ -125,7 +125,6 @@ Pipeline orquestado como un único Databricks Workflow en **abanico** (46 tasks)
 04_reporte_excel_correo/      # Excel + correo
 05_pruebas_calidad/           # pruebas con datos defectuosos
 06_calidad_datos/             # motor de validaciones (24 reglas)
-07_backfill/                  # orquestador de backfill por ventana de cortes
 modulos_compartidos/          # funciones comunes de Silver
 tests/                        # 13 pruebas con pytest
 resources/                    # Asset Bundle (YAML del Job)

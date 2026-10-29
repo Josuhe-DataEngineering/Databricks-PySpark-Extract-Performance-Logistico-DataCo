@@ -75,7 +75,7 @@
 | **2 · Calidad de datos** | 24 reglas declarativas, cuarentena, pruebas con datos defectuosos | ✅ |
 | **3 · Ingeniería, CI y CD** | Módulo compartido, 13 pruebas `pytest` en GitHub Actions, Asset Bundles, deploy a `dev` | ✅ |
 | **4 · Gobierno** | Comentarios, tags, máscara PII, GRANT por rol, diccionario de datos | ✅ |
-| **5 · Reprocesabilidad** | SCD2 con fecha de negocio, backfill, reinicio | 🚧 |
+| **5 · Reprocesabilidad** | SCD2 con fecha de negocio, backfill por ventana, snapshots regenerables | ✅ |
 | **6 · Nube y escala** | Azure Databricks, ADLS Gen2, Auto Loader, prueba de escala | 🚧 |
 | **7 · Nivel plataforma** | Contratos de datos, SLOs, runbooks, incidentes simulados | 🚧 |
 | **8 · Machine Learning** | Modelo de riesgo de retraso con MLflow en Unity Catalog | 🚧 |
@@ -196,6 +196,7 @@ Esta portada da la visión general. El detalle vive en `docs/`, un archivo por t
 04_reporte_excel_correo/      # Excel + correo
 05_pruebas_calidad/           # pruebas con datos defectuosos
 06_calidad_datos/             # motor de validaciones (24 reglas)
+07_backfill/                  # orquestador de backfill por ventana de cortes
 modulos_compartidos/          # funciones comunes de Silver
 tests/                        # 13 pruebas con pytest
 resources/ · databricks.yml   # Asset Bundle (YAML del Job)

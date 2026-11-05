@@ -30,7 +30,7 @@ Detalle en [gobierno.md](gobierno.md).
 
 ---
 
-## Etapa C — Reprocesabilidad 🚧
+## Etapa C — Reprocesabilidad ✅ Completa
 
 - SCD2 con fecha de negocio en lugar de la fecha del sistema; snapshots de KPIs regenerables para cortes pasados.
 - Cierre en el SCD2 de los pedidos que pasan a cancelados.

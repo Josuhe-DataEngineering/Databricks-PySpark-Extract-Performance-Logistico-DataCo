@@ -47,7 +47,7 @@ Detalle en [gobierno.md](gobierno.md).
 - **Dos entornos con el mismo código:** Databricks Free Edition como `dev` y **Azure Databricks** como `prod`, con almacenamiento externo en **ADLS Gen2**, Unity Catalog con ubicación externa y presupuesto con alerta de costo.
 - **Ingesta incremental con Auto Loader** sobre archivos que llegan al almacenamiento, en lugar de leer el archivo completo por ventana.
 - **Prueba de escala:** datos sintéticos de decenas o cientos de millones de filas, en un esquema aparte y declarados como sintéticos, con tiempos y costos antes y después de `OPTIMIZE` y liquid clustering.
-- **Infraestructura con Terraform** (opcional) para el almacenamiento, las credenciales y los catálogos.
+- **Infraestructura con Terraform** para el almacenamiento, las credenciales y los catálogos.
 - **Terminado cuando:** el mismo bundle despliega a `dev` y a `prod` y existe un ADR con los tiempos y costos medidos.
 
 ---

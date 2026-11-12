@@ -79,7 +79,7 @@
 | **5 · Reprocesabilidad** | SCD2 con fecha de negocio, backfill por ventana, snapshots regenerables | ✅ |
 | **6 · Nube y escala** | Azure Databricks, ADLS Gen2, Auto Loader, prueba de escala | 🚧 |
 | **7 · Nivel plataforma** | Contratos de datos, SLOs, runbooks, incidentes simulados | 🚧 |
-| **8 · Machine Learning** | Modelo de riesgo de retraso con MLflow y Unity Catalog Model Registry | ✅ |
+| **8 · Machine Learning** | Modelo de riesgo de retraso con MLflow y Unity Catalog | ✅ |
 
 <br>
 

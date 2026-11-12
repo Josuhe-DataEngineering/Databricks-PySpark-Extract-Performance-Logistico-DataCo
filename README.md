@@ -30,7 +30,7 @@
 
 <br>
 
-> **Qué es:** tomé un reporte logístico que se armaba a mano cada semana cruzando exports en Excel (2–3 h de un analista, con cifras distintas entre áreas) y lo convertí en una **plataforma de datos gobernada de punta a punta** sobre Databricks Lakehouse: ingesta desde SharePoint, procesamiento en capas con **24 reglas de calidad probadas con datos defectuosos**, modelo dimensional con historial, gobierno con Unity Catalog, un Excel ejecutivo que se envía solo, trazabilidad y alertas — todo descrito como código y con CI/CD.
+> **Qué es:** tomé un reporte logístico que se armaba a mano cada semana cruzando exports en Excel (2–3 h de un analista, con cifras distintas entre áreas) y lo convertí en una **plataforma de datos gobernada de punta a punta** sobre Databricks Lakehouse: ingesta desde SharePoint, procesamiento en capas con **24 reglas de calidad probadas con datos defectuosos**, modelo dimensional con historial, gobierno con Unity Catalog, un Excel ejecutivo que se envía solo, trazabilidad y alertas, y un **modelo de Machine Learning** de riesgo de retraso registrado en Unity Catalog — todo descrito como código y con CI/CD.
 >
 > 🚧 marca lo diseñado pero aún no implementado. Lo demás **ya corre de punta a punta**.
 
@@ -55,11 +55,12 @@
 </td>
 <td valign="top">
 <ul>
-<li><b>Una corrida reproducible</b> </li>
+<li><b>Una corrida reproducible</b></li>
 <li>Reglas de negocio <b>centralizadas y versionadas</b></li>
 <li>Calidad <b>validada antes de publicar</b> (24 reglas)</li>
 <li><b>Historial de cambios</b> (SCD2) y linaje en el catálogo</li>
 <li><b>Entrega automática</b> del Excel al área por correo</li>
+<li><b>Predicción de riesgo de retraso</b> con Random Forest registrado en Unity Catalog</li>
 </ul>
 </td>
 </tr>
@@ -78,7 +79,7 @@
 | **5 · Reprocesabilidad** | SCD2 con fecha de negocio, backfill por ventana, snapshots regenerables | ✅ |
 | **6 · Nube y escala** | Azure Databricks, ADLS Gen2, Auto Loader, prueba de escala | 🚧 |
 | **7 · Nivel plataforma** | Contratos de datos, SLOs, runbooks, incidentes simulados | 🚧 |
-| **8 · Machine Learning** | Modelo de riesgo de retraso con MLflow en Unity Catalog | 🚧 |
+| **8 · Machine Learning** | Modelo de riesgo de retraso con MLflow y Unity Catalog Model Registry | ✅ |
 
 <br>
 
@@ -89,10 +90,11 @@ SharePoint ──▶ 🥉 Bronze ──▶ 🥈 Silver ──▶ ✅ Calidad ─
              (crudo,         (tipado,       (21 reglas    (modelo      (3 reglas
               STRING +        dedupe,        + cuarentena)  estrella +   de consistencia)
               metadatos)      cuarentena)                   KPIs)
+                                                               └──▶ 🤖 ML · predicción de retraso
                      └──── 📋 etl_log + 🚨 alertas Slack + 📈 dashboard de salud en cada task ────┘
 ```
 
-Pipeline orquestado como **un único Databricks Workflow en abanico** (46 tasks), descrito como código con **Asset Bundles**. Entre capas, dos **compuertas de calidad** detienen el flujo si una regla crítica falla; cada task tiene su `log_error` que registra la excepción y avisa a Slack. Una alerta salta si la ejecución supera los 35 min.
+Pipeline orquestado como **un único Databricks Workflow en abanico** (52 tasks), descrito como código con **Asset Bundles**. Entre capas, dos **compuertas de calidad** detienen el flujo si una regla crítica falla; cada task tiene su `log_error` que registra la excepción y avisa a Slack. Una alerta salta si la ejecución supera los 35 min.
 
 <p align="center">
   <img src="docs/workflow.png" alt="Workflow DataCo de punta a punta" width="100%">
@@ -143,13 +145,53 @@ Esta portada da la visión general. El detalle vive en `docs/`, un archivo por t
 
 <br>
 
-<p align="center">
-  <img src="docs/linaje.png" alt="Linaje Unity Catalog — modelo dimensional" width="100%">
-</p>
+```
+        dim_customers        dim_products
+              │                    │
+              ▼                    ▼
+  dim_fecha ─▶ fact_orders ◀─ fact_order_details ◀─ dim_products
+              ▲       ▲
+        dim_locations  dim_shipping_mode
+```
 
 5 dimensiones (clientes y productos con **SCD2**) · 2 tablas de hechos · 1 resumen por pedido como base única de los KPIs. Las tablas de Gold declaran llaves primarias y foráneas informativas; no llevan `CHECK` porque Databricks no lo permite junto a una máscara de columna ([ADR-014](docs/adr/014-gobierno-en-gold.md)).
 
 **Los 7 indicadores:** On-Time Delivery % · Late Delivery Risk % · Shipping Variance · Profit Margin % · Revenue por Cliente · Beneficio por Orden · Lead Time Promedio — con agrupaciones **GLOBAL** y **AMERICAS**, excluyendo cancelados y marcando los sospechosos de fraude.
+
+</details>
+
+<details>
+<summary><b>🤖 Machine Learning — Riesgo de retraso</b></summary>
+
+<br>
+
+Modelo de clasificación binaria que predice si un pedido se retrasará **antes** de que salga del almacén, usando únicamente información disponible al momento de crear el pedido (sin fuga de datos).
+
+**Algoritmo:** Random Forest (100 árboles, profundidad 10) — robusto, sin necesidad de escalar features, interpretable vía importancias.
+
+**Features (7):**
+
+| Feature | Tipo | Fuente |
+|---|---|---|
+| `shipping_mode` | Categórica | Gold · dim_shipping_mode |
+| `days_for_shipment_scheduled` | Numérica | Gold · fact_orders |
+| `market` | Categórica | Gold · dim_locations |
+| `order_region` | Categórica | Gold · dim_locations |
+| `es_sospechoso_fraude` | Binaria | Gold · fact_orders |
+| `mes_pedido` | Numérica | Gold · dim_fecha |
+| `dia_semana_pedido` | Numérica | Gold · dim_fecha |
+
+**Tablas producidas:**
+
+| Tabla | Descripción |
+|---|---|
+| `desc_ml_features_orders` | Features por pedido vigente (overwrite idempotente) |
+| `ml_late_delivery_risk` | Modelo registrado en Unity Catalog con alias `champion` |
+| `desc_ml_late_delivery_risk` | Predicciones con `prob_retraso` y versión del modelo |
+
+**Seguimiento:** experimento `dataco_late_delivery_risk` en MLflow — accuracy, F1, precision, recall, AUC-ROC e importancias de features por ejecución.
+
+**Orquestación:** 3 tasks (`ml_feature_engineering → ml_train_register → ml_predict`) corren en paralelo con `dq_validaciones_gold` tras `gld_order_summary`, cada una con su `log_error` en el Workflow.
 
 </details>
 
@@ -170,8 +212,8 @@ Esta portada da la visión general. El detalle vive en `docs/`, un archivo por t
 | Reportería | openpyxl · matplotlib · Dashboards AI/BI |
 | Pruebas | pytest |
 | IaC, CI y CD | Databricks Asset Bundles · Databricks CLI · GitHub Actions |
+| Machine Learning | MLflow · Unity Catalog Model Registry · PySpark MLlib |
 | Nube 🚧 | Azure Databricks · ADLS Gen2 · Auto Loader |
-| Machine Learning 🚧 | MLflow · Unity Catalog Models |
 
 </details>
 
@@ -191,10 +233,11 @@ Esta portada da la visión general. El detalle vive en `docs/`, un archivo por t
 04_reporte_excel_correo/      # Excel + correo
 05_pruebas_calidad/           # pruebas con datos defectuosos
 06_calidad_datos/             # motor de validaciones (24 reglas)
+07_machine_learning/          # features, entrenamiento, predicción con MLflow
 07_backfill/                  # orquestador de backfill por ventana de cortes
 modulos_compartidos/          # funciones comunes de Silver
 tests/                        # 13 pruebas con pytest
-resources/ · databricks.yml   # Asset Bundle (YAML del Job)
+resources/ · databricks.yml   # Asset Bundle (YAML del Job — 52 tasks)
 .github/workflows/            # CI y CD
 docs/                         # documentación detallada y ADRs
 ```

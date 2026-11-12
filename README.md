@@ -143,14 +143,9 @@ Esta portada da la visión general. El detalle vive en `docs/`, un archivo por t
 
 <br>
 
-```
-        dim_customers        dim_products
-              │                    │
-              ▼                    ▼
-  dim_fecha ─▶ fact_orders ◀─ fact_order_details ◀─ dim_products
-              ▲       ▲
-        dim_locations  dim_shipping_mode
-```
+<p align="center">
+  <img src="docs/linaje.png" alt="Linaje Unity Catalog — modelo dimensional" width="100%">
+</p>
 
 5 dimensiones (clientes y productos con **SCD2**) · 2 tablas de hechos · 1 resumen por pedido como base única de los KPIs. Las tablas de Gold declaran llaves primarias y foráneas informativas; no llevan `CHECK` porque Databricks no lo permite junto a una máscara de columna ([ADR-014](docs/adr/014-gobierno-en-gold.md)).
 

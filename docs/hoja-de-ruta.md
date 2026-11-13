@@ -62,6 +62,22 @@ Detalle en [gobierno.md](gobierno.md).
 
 ---
 
-## Etapa F — Machine Learning 🚧
+## Etapa F — Machine Learning ✅ Completa
 
-Modelo de riesgo de retraso con variables sin fuga de datos, MLflow, modelo versionado en Unity Catalog y tabla de predicciones. Se entrena solo con datos reales.
+Modelo de clasificación binaria que predice riesgo de retraso en entrega, construido y orquestado de punta a punta dentro del mismo Workflow de Databricks. Se entrena solo con datos reales, usando variables disponibles al momento de crear el pedido (sin fuga de datos), y el modelo queda versionado en Unity Catalog Model Registry.
+
+**Lo que se construyó:**
+
+- **`ml_feature_engineering`** — genera `desc_ml_features_orders` a partir de Gold (fact_orders + dim_fecha + dim_locations + dim_shipping_mode); 7 features sin fuga de datos, overwrite idempotente por corte.
+- **`ml_train_register`** — pipeline Random Forest (StringIndexer x3 → OHE → VectorAssembler → RandomForestClassifier, 100 árboles, profundidad 10, seed 42); split 80/20 estratificado; registra accuracy, F1, precision, recall, AUC-ROC e importancias en experimento MLflow `dataco_late_delivery_risk`; modelo registrado en Unity Catalog (`gld_dataco.supply_chain.ml_late_delivery_risk`) con alias `champion`.
+- **`ml_predict`** — carga el modelo por alias `champion` (sin hardcodear versión), aplica el pipeline sobre los pedidos vigentes y escribe `desc_ml_late_delivery_risk` con `late_delivery_risk_pred`, `prob_retraso`, `model_version` y trazabilidad de corte.
+- **3 notebooks `log_error_*`** — mismo patrón Jobs API + DeltaTable + Slack que el resto del pipeline.
+- **YAML del bundle actualizado** — 6 tasks ML (`ml_feature_engineering → ml_train_register → ml_predict` + sus 3 `log_error_*`) corriendo en paralelo con `dq_validaciones_gold` tras `gld_order_summary`; total del Workflow: 52 tasks.
+
+**Lecciones técnicas registradas:**
+
+- En clusters shared/serverless se requiere `dfs_tmpdir` apuntando a un UC Volume (`/Volumes/...`) tanto en `log_model()` como en `load_model()`.
+- Unity Catalog exige `signature` e `input_example` al registrar; sin ellos el registro falla con error explícito.
+- El alias `champion` permite promover una nueva versión del modelo sin modificar el notebook de predicción.
+
+**Criterio cumplido:** el modelo corre automáticamente dentro del Workflow en cada corte, las predicciones están en una tabla Gold consultable, y el experimento MLflow permite comparar versiones entre ejecuciones.
